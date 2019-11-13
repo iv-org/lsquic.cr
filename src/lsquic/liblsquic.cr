@@ -79,7 +79,7 @@ lib LibLsquic
 
   struct HttpHeaders
     count : LibC::Int
-    headers : HttpHeaderT*
+    headers : HttpHeader*
   end
 
   struct HttpHeader
@@ -294,10 +294,10 @@ lib LibLsquic
 
   fun stream_writef = lsquic_stream_writef(x0 : StreamT, x1 : Reader*) : SsizeT
   fun stream_flush = lsquic_stream_flush(s : StreamT) : LibC::Int
-  fun stream_send_headers = lsquic_stream_send_headers(s : StreamT, h : HttpHeadersT*, eos : LibC::Int) : LibC::Int
+  fun stream_send_headers = lsquic_stream_send_headers(s : StreamT, h : HttpHeaders*, eos : LibC::Int) : LibC::Int
   type HttpHeadersT = HttpHeaders
   fun stream_get_hset = lsquic_stream_get_hset(x0 : StreamT) : Void*
-  fun conn_push_stream = lsquic_conn_push_stream(c : ConnT, hdr_set : Void*, s : StreamT, url : Iovec*, authority : Iovec*, headers : HttpHeadersT*) : LibC::Int
+  fun conn_push_stream = lsquic_conn_push_stream(c : ConnT, hdr_set : Void*, s : StreamT, url : Iovec*, authority : Iovec*, headers : HttpHeaders*) : LibC::Int
   fun conn_is_push_enabled = lsquic_conn_is_push_enabled(x0 : ConnT) : LibC::Int
   fun stream_shutdown = lsquic_stream_shutdown(s : StreamT, how : LibC::Int) : LibC::Int
   fun stream_close = lsquic_stream_close(s : StreamT) : LibC::Int

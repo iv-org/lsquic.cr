@@ -1,9 +1,10 @@
 require "./lsquic/*"
+# require "http/headers"
 require "http"
 require "socket"
 
 # TODO: Move into StreamCtx as HTTP::Client::Request
-PATH    = "/"
+PATH    = "/watch?v=QmyhcjpsF6E"
 METHOD  = "GET"
 HEADERS = HTTP::Headers{
   ":method"    => METHOD,
@@ -11,16 +12,16 @@ HEADERS = HTTP::Headers{
   ":path"      => PATH,
   ":authority" => "www.youtube.com",
   "user-agent" => "lsquic/2.6.1",
-  # TODO: Only sent if payload
+  # TODO: Send if payload
   # "content-type"   => "application/octet-stream"
   # "content-length" => "0",
 }
 
-logger_if = LibLsquic::LoggerIf.new
-logger_if.log_buf = ->(logger_ctx : Void*, msg_buf : LibC::Char*, msg_size : LibC::SizeT) { puts String.new(msg_buf); 0 }
-LibLsquic.logger_init(pointerof(logger_if), nil, LibLsquic::LoggerTimestampStyle::LltsHhmmssms)
+# logger_if = LibLsquic::LoggerIf.new
+# logger_if.log_buf = ->(logger_ctx : Void*, msg_buf : LibC::Char*, msg_size : LibC::SizeT) { puts String.new(msg_buf); 0 }
+# LibLsquic.logger_init(pointerof(logger_if), nil, LibLsquic::LoggerTimestampStyle::LltsHhmmssms)
 # LibLsquic.set_log_level("debug")
-LibLsquic.logger_lopt("qlog=debug,conn=debug,engine=debug")
+# LibLsquic.logger_lopt("conn=debug")
 
 engine_flags = LibLsquic::LSENG_HTTP
 LibLsquic.engine_init_settings(out engine_settings, engine_flags)
@@ -29,7 +30,7 @@ engine_settings.es_ecn = 0
 
 LibLsquic.global_init(engine_flags & LibLsquic::LSENG_SERVER ? LibLsquic::GLOBAL_SERVER : LibLsquic::GLOBAL_CLIENT)
 
-err_buf = Bytes.new(128)
+err_buf = Bytes.new(0x100)
 err_code = LibLsquic.engine_check_settings(pointerof(engine_settings), engine_flags, err_buf, err_buf.size)
 raise String.new(err_buf) if err_code != 0
 
@@ -48,45 +49,71 @@ stream_if.on_new_stream = ->(stream_if_ctx : Void*, s : LibLsquic::StreamT) do
 
   stream_if_ctx
 end
-stream_if.on_read = ->(s : LibLsquic::StreamT, stream_if_ctx : Void*) { pp "b"; stream_if_ctx }
-stream_if.on_write = ->(s : LibLsquic::StreamT, stream_if_ctx : Void*) do
-  # TODO: Handle if ctx has written headers(?)
 
-  pp "c"
-
-  # headers = HEADERS.map do |name, values|
-  #   value = values[0]
-
-  #   name_vec = LibLsquic::Iovec.new
-  #   name_vec.iov_base = name.to_slice
-  #   name_vec.iov_len = name.bytesize
-
-  #   value_vec = LibLsquic::Iovec.new
-  #   value_vec.iov_base = value.to_slice
-  #   value_vec.iov_len = value.bytesize
-
-  #   header = LibLsquic::HttpHeader.new
-  #   header.name = name_vec
-  #   header.value = value_vec
-
-  #   header
-  # end
-
-  # pp headers
-
-  # LibLsquic.stream_wantwrite(s, 0)
-  # LibLsquic.stream_wantread(s, 1)
-  # LibLsquic.stream_shutdown(s, 1)
+stream_if.on_read = ->(s : LibLsquic::StreamT, stream_if_ctx : Void*) do
+  buffer = Bytes.new(0x200)
+  bytes_read = LibLsquic.stream_read(s, buffer, buffer.size)
+  if bytes_read > 0
+    print String.new(buffer[0, bytes_read])
+  elsif bytes_read == 0
+    LibLsquic.stream_shutdown(s, 0)
+    #    LibLsquic.stream_wantread(s, 0)
+    # LibLsquic.stream_close(s)
+  elsif LibLsquic.stream_is_rejected(s)
+    LibLsquic.stream_close(s)
+  else
+    raise "Could not read stream"
+  end
 
   stream_if_ctx
 end
-stream_if.on_close = ->(s : LibLsquic::StreamT, stream_if_ctx : Void*) { stream_if_ctx }
+
+stream_if.on_write = ->(s : LibLsquic::StreamT, stream_if_ctx : Void*) do
+  # TODO: Handle if ctx has written headers(?)
+
+  headers = HEADERS.map do |name, values|
+    value = values[0]
+
+    name_vec = LibLsquic::Iovec.new
+    name_vec.iov_base = name.to_slice
+    name_vec.iov_len = name.bytesize
+
+    value_vec = LibLsquic::Iovec.new
+    value_vec.iov_base = value.to_slice
+    value_vec.iov_len = value.bytesize
+
+    header = LibLsquic::HttpHeader.new
+    header.name = name_vec
+    header.value = value_vec
+
+    header
+  end
+
+  http_headers = LibLsquic::HttpHeaders.new
+  http_headers.count = headers.size
+  http_headers.headers = headers.to_unsafe
+
+  # For payload, last argument is 0
+  raise "Could not send headers" if LibLsquic.stream_send_headers(s, pointerof(http_headers), 1) != 0
+
+  LibLsquic.stream_shutdown(s, 1)
+  LibLsquic.stream_wantwrite(s, 0)
+  LibLsquic.stream_wantread(s, 1)
+
+  stream_if_ctx
+end
+
+stream_if.on_close = ->(s : LibLsquic::StreamT, stream_if_ctx : Void*) do
+  LibLsquic.conn_close(LibLsquic.stream_conn(s))
+  stream_if_ctx
+end
 
 engine_api = LibLsquic::EngineApi.new
 engine_api.ea_settings = pointerof(engine_settings)
 engine_api.ea_stream_if = pointerof(stream_if)
 engine_api.ea_stream_if_ctx = Box.box(IO::Memory.new) # TODO
 # engine_api.ea_get_ssl_ctx = ->(peer_ctx : Void*) {}
+
 engine_api.ea_packets_out = ->(peer_ctx : Void*, specs : LibLsquic::OutSpec*, count : LibC::UInt) do
   count.times do |i|
     spec = specs[i]
@@ -100,6 +127,7 @@ engine_api.ea_packets_out = ->(peer_ctx : Void*, specs : LibLsquic::OutSpec*, co
 
   count.to_i32
 end
+
 engine = LibLsquic.engine_new(engine_flags, pointerof(engine_api))
 
 hostname = "www.youtube.com"
@@ -130,16 +158,9 @@ loop do
 
   if LibLsquic.engine_earliest_adv_tick(engine, out diff) == 0
     break
-  else
-    sleep (diff / 1000000).seconds
-    sleep (diff % 1000000).nanoseconds
   end
 
-  buffer = Bytes.new(1370)
-  bytes_read = buffer.size
-  until bytes_read < buffer.size
-    bytes_read = peer_ctx.socket.read(buffer)
-    LibLsquic.engine_packet_in(engine, buffer, buffer.size, peer_ctx.socket.local_address, peer_addr, Box.box(peer_ctx), 0)
-    LibLsquic.engine_process_conns(engine)
-  end
+  buffer = Bytes.new(0x600)
+  bytes_read = peer_ctx.socket.read(buffer)
+  LibLsquic.engine_packet_in(engine, buffer[0, bytes_read], bytes_read, peer_ctx.socket.local_address, peer_addr, Box.box(peer_ctx), 0)
 end
