@@ -1,0 +1,9 @@
+name: lsquic
+version: 0.1.0
+
+authors:
+  - Omar Roth <omarroth@protonmail.com>
+
+crystal: 0.31.1
+
+license: MIT
