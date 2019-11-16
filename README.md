@@ -1,6 +1,6 @@
 # lsquic
 
-TODO: Write a description here
+Crystal bindings to the excellent [LSQUIC](https://github.com/litespeedtech/lsquic) library.
 
 ## Installation
 
@@ -13,18 +13,6 @@ TODO: Write a description here
    ```
 
 2. Run `shards install`
-
-## Usage
-
-```crystal
-require "lsquic.cr"
-```
-
-TODO: Write usage instructions here
-
-## Development
-
-TODO: Write development instructions here
 
 ## Contributing
 

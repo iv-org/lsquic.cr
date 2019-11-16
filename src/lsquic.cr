@@ -1,8 +1,8 @@
-require "./lsquic/*"
-require "http"
+require "./lsquic/patch"
+require "./lsquic/liblsquic"
+require "http/headers"
 require "socket"
 
-# TODO: Move into StreamCtx as HTTP::Client::Request
 PATH    = "/watch?v=QmyhcjpsF6E"
 METHOD  = "GET"
 HEADERS = HTTP::Headers{
@@ -10,23 +10,14 @@ HEADERS = HTTP::Headers{
   ":scheme"    => "https",
   ":path"      => PATH,
   ":authority" => "www.youtube.com",
-  "user-agent" => "lsquic/2.6.1",
-  # TODO: Send if payload
+  "user-agent" => "Chrome/78.0.3904.97 Linux x86_64",
   # "content-type"   => "application/octet-stream"
   # "content-length" => "0",
 }
 
-pp HTTP::Client.get("https://www.youtube.com#{PATH}").status_code
-
-# logger_if = LibLsquic::LoggerIf.new
-# logger_if.log_buf = ->(logger_ctx : Void*, msg_buf : LibC::Char*, msg_size : LibC::SizeT) { puts String.new(msg_buf); 0 }
-# LibLsquic.logger_init(pointerof(logger_if), nil, LibLsquic::LoggerTimestampStyle::LltsHhmmssms)
-# LibLsquic.set_log_level("debug")
-# LibLsquic.logger_lopt("conn=debug")
-
 engine_flags = LibLsquic::LSENG_HTTP
 LibLsquic.engine_init_settings(out engine_settings, engine_flags)
-engine_settings.es_ua = "lsquic/2.6.1"
+engine_settings.es_ua = "Chrome/78.0.3904.97 Linux x86_64"
 engine_settings.es_ecn = 0
 
 LibLsquic.global_init(engine_flags & LibLsquic::LSENG_SERVER ? LibLsquic::GLOBAL_SERVER : LibLsquic::GLOBAL_CLIENT)
@@ -37,7 +28,6 @@ raise String.new(err_buf) if err_code != 0
 
 stream_if = LibLsquic::StreamIf.new
 stream_if.on_new_conn = ->(stream_if_ctx : Void*, c : LibLsquic::ConnT) { LibLsquic.conn_make_stream(c); stream_if_ctx }
-# stream_if.on_goaway_received = ->(c : LibLsquic::ConnT) { Box.box(nil) }
 stream_if.on_conn_closed = ->(c : LibLsquic::ConnT) { Box.box(nil) }
 
 stream_if.on_new_stream = ->(stream_if_ctx : Void*, s : LibLsquic::StreamT) do
@@ -58,8 +48,6 @@ stream_if.on_read = ->(s : LibLsquic::StreamT, stream_if_ctx : Void*) do
     print String.new(buffer[0, bytes_read])
   elsif bytes_read == 0
     LibLsquic.stream_shutdown(s, 0)
-    #    LibLsquic.stream_wantread(s, 0)
-    # LibLsquic.stream_close(s)
   elsif LibLsquic.stream_is_rejected(s)
     LibLsquic.stream_close(s)
   else
@@ -113,7 +101,6 @@ engine_api = LibLsquic::EngineApi.new
 engine_api.ea_settings = pointerof(engine_settings)
 engine_api.ea_stream_if = pointerof(stream_if)
 engine_api.ea_stream_if_ctx = Box.box(IO::Memory.new) # TODO
-# engine_api.ea_get_ssl_ctx = ->(peer_ctx : Void*) {}
 
 engine_api.ea_packets_out = ->(peer_ctx : Void*, specs : LibLsquic::OutSpec*, count : LibC::UInt) do
   count.times do |i|

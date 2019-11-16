@@ -1,6 +1,4 @@
-require "openssl/lib_ssl"
-require "openssl/lib_crypto"
-require "openssl/bio"
+require "openssl"
 
 @[Link(ldflags: "#{__DIR__}/ext/liblsquic.a #{__DIR__}/ext/libcrypto.a")]
 lib LibCrypto
@@ -19,8 +17,6 @@ lib LibSSL
   fun ssl_ctx_set_mode = SSL_CTX_set_mode(ctx : SSLContext, mode : ULong) : ULong
   fun ssl_ctx_clear_mode = SSL_CTX_clear_mode(ctx : SSLContext, mode : ULong) : ULong
 end
-
-require "openssl/ssl/context"
 
 abstract class OpenSSL::SSL::Context
   def set_tmp_ecdh_key(curve = LibCrypto::NID_X9_62_prime256v1)
@@ -144,8 +140,6 @@ struct OpenSSL::BIO
     BIO.set_data(@bio, @boxed_io)
   end
 end
-
-require "openssl/ssl/socket"
 
 abstract class OpenSSL::SSL::Socket < IO
   class Client < Socket

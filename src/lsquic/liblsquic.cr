@@ -1,4 +1,4 @@
-@[Link(ldflags: "#{__DIR__}/ext/liblsquic.a")]
+@[Link(ldflags: "#{__DIR__}/ext/liblsquic.a -lz")]
 lib LibLsquic
   MAX_CID_LEN                                = 20
   QQUIC_CID_LEN                              =  8
