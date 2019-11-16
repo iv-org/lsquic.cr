@@ -1,5 +1,4 @@
 require "./lsquic/*"
-require "socket"
 
 module QUIC
   VERSION      = "0.1.0"
