@@ -1,5 +1,4 @@
-require "./lsquic/patch"
-require "./lsquic/liblsquic"
+require "./lsquic/*"
 require "http/headers"
 require "socket"
 
@@ -14,6 +13,9 @@ HEADERS = HTTP::Headers{
   # "content-type"   => "application/octet-stream"
   # "content-length" => "0",
 }
+
+# Crystal will try to be smart and optimize away our dependencies, this "pins" them
+OpenSSL::SSL::Context::Client.new
 
 engine_flags = LibLsquic::LSENG_HTTP
 LibLsquic.engine_init_settings(out engine_settings, engine_flags)
