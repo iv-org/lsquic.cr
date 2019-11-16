@@ -375,5 +375,3 @@ lib LibLsquic
   end
   $ver2str : LibC::Char*[6]
 end
-
-require "./patch"
