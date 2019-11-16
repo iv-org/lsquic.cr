@@ -1,4 +1,4 @@
-@[Link(ldflags: "#{__DIR__}/ext/liblsquic.a #{__DIR__}/ext/libssl.a #{__DIR__}/ext/libcrypto.a -lz")]
+@[Link(ldflags: "#{__DIR__}/ext/liblsquic.a")]
 lib LibLsquic
   MAX_CID_LEN                                = 20
   QQUIC_CID_LEN                              =  8
@@ -375,3 +375,5 @@ lib LibLsquic
   end
   $ver2str : LibC::Char*[6]
 end
+
+require "./patch"

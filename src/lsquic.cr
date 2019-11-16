@@ -1,5 +1,4 @@
 require "./lsquic/*"
-# require "http/headers"
 require "http"
 require "socket"
 
@@ -16,6 +15,8 @@ HEADERS = HTTP::Headers{
   # "content-type"   => "application/octet-stream"
   # "content-length" => "0",
 }
+
+pp HTTP::Client.get("https://www.youtube.com#{PATH}").status_code
 
 # logger_if = LibLsquic::LoggerIf.new
 # logger_if.log_buf = ->(logger_ctx : Void*, msg_buf : LibC::Char*, msg_size : LibC::SizeT) { puts String.new(msg_buf); 0 }
