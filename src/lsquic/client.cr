@@ -1,5 +1,5 @@
 require "http"
-require "socket/udp_socket"
+require "socket"
 
 struct QUIC::PeerCtx
   property socket : UDPSocket
@@ -37,13 +37,14 @@ class QUIC::Client
   getter port : Int32
   getter! tls : OpenSSL::SSL::Context::Client
 
-  @peer_ctx : PeerCtx | Nil
-  @engine : LibLsquic::EngineT | Nil
   @conn : LibLsquic::ConnT | Nil
   @engine : LibLsquic::EngineT | Nil
-  @engine_settings : LibLsquic::EngineSettings
-  @stream_if : LibLsquic::StreamIf
+  @engine : LibLsquic::EngineT | Nil
   @engine_api : LibLsquic::EngineApi
+  @engine_settings : LibLsquic::EngineSettings
+  @peer_ctx : PeerCtx | Nil
+  @stream_ctx : StreamCtx
+  @stream_if : LibLsquic::StreamIf
 
   @dns_timeout : Float64?
   @connect_timeout : Float64?
@@ -381,7 +382,7 @@ class QUIC::Client
 
   private def exec_internal_single(request)
     send_request(request)
-    HTTP::Client::Response.from_io?(stream_ctx.io, ignore_body: request.ignore_body?) do |response|
+    HTTP::Client::Response.from_io?(@stream_ctx.io, ignore_body: request.ignore_body?) do |response|
       yield response
     end
   end
