@@ -1,5 +1,4 @@
-require "http/headers"
-require "http/client"
+require "http"
 require "socket/udp_socket"
 
 struct QUIC::PeerCtx
@@ -360,7 +359,7 @@ class QUIC::Client
     end
   end
 
-  private def exec_internal(request, &block : Response -> T) : T forall T
+  private def exec_internal(request, &block : HTTP::Client::Response -> T) : T forall T
     exec_internal_single(request) do |response|
       if response
         return handle_response(response) { yield response }
