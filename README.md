@@ -2,6 +2,12 @@
 
 Crystal bindings to the excellent [LSQUIC](https://github.com/litespeedtech/lsquic) library.
 
+`libssl.a`, `libcrypto.a` are both licensed under `LICENSE.boringssl`.
+
+`liblsquic.a` is licensed under `LICENSE.lsquic` and `LICENSE.chrome`.
+
+This library is available under the MIT license.
+
 ## Installation
 
 1. Add the dependency to your `shard.yml`:
@@ -14,6 +20,21 @@ Crystal bindings to the excellent [LSQUIC](https://github.com/litespeedtech/lsqu
 
 2. Run `shards install`
 
+## Usage
+
+```crystal
+require "lsquic"
+
+client = QUIC::Client.new("www.youtube.com")
+client.get("/") # => #<HTTP::Client::Response>
+
+client.get("/", headers: HTTP::Headers{
+  "cookie" => "Some value",
+  # ...
+}) # => #<HTTP::Client::Response>
+
+```
+
 ## Contributing
 
 1. Fork it (<https://github.com/omarroth/lsquic.cr/fork>)
@@ -25,3 +46,7 @@ Crystal bindings to the excellent [LSQUIC](https://github.com/litespeedtech/lsqu
 ## Contributors
 
 - [Omar Roth](https://github.com/omarroth) - creator and maintainer
+
+```
+
+```
