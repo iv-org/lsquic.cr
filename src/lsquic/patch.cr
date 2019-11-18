@@ -7,6 +7,7 @@ lib LibCrypto
   fun sk_num = sk_num(x0 : Void*) : Int
   fun sk_pop_free = sk_pop_free(st : Void*, callback : (Void*) ->)
   fun sk_value = sk_value(x0 : Void*, x1 : Int) : Void*
+  fun openssl_add_all_algorithms = nil
 end
 
 @[Link(ldflags: "#{__DIR__}/ext/libssl.a")]
@@ -16,6 +17,7 @@ lib LibSSL
   fun ssl_ctx_get_mode = SSL_CTX_get_mode(ctx : SSLContext) : ULong
   fun ssl_ctx_set_mode = SSL_CTX_set_mode(ctx : SSLContext, mode : ULong) : ULong
   fun ssl_ctx_clear_mode = SSL_CTX_clear_mode(ctx : SSLContext, mode : ULong) : ULong
+  fun ssl_ctx_ctrl = nil
 end
 
 abstract class OpenSSL::SSL::Context
