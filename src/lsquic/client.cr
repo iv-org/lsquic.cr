@@ -409,7 +409,7 @@ class QUIC::Client
     request.headers[":scheme"] ||= "https"
     request.headers[":path"] ||= request.resource
     request.headers[":authority"] ||= host_header
-    request.headers["user-agent"] ||= "Chrome/78.0.3904.97 Linux x86_64"
+    request.headers["user-agent"] ||= "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.97 Safari/537.36"
   end
 
   private def self.default_one_shot_headers(headers)
