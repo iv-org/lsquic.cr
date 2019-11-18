@@ -7,7 +7,9 @@ lib LibCrypto
   fun sk_num = sk_num(x0 : Void*) : Int
   fun sk_pop_free = sk_pop_free(st : Void*, callback : (Void*) ->)
   fun sk_value = sk_value(x0 : Void*, x1 : Int) : Void*
-  fun openssl_add_all_algorithms = nil
+
+  fun openssl_add_all_algorithms = rand : LibC::Int
+  fun err_load_crypto_strings = rand : LibC::Int
 end
 
 @[Link(ldflags: "#{__DIR__}/ext/libssl.a")]
@@ -17,7 +19,12 @@ lib LibSSL
   fun ssl_ctx_get_mode = SSL_CTX_get_mode(ctx : SSLContext) : ULong
   fun ssl_ctx_set_mode = SSL_CTX_set_mode(ctx : SSLContext, mode : ULong) : ULong
   fun ssl_ctx_clear_mode = SSL_CTX_clear_mode(ctx : SSLContext, mode : ULong) : ULong
-  fun ssl_ctx_ctrl = nil
+  fun ssl_ctx_get_options = SSL_CTX_get_options(ctx : SSLContext) : ULong
+  fun ssl_ctx_set_options = SSL_CTX_set_options(ctx : SSLContext, larg : ULong) : ULong
+  fun ssl_ctx_clear_options = SSL_CTX_clear_options(ctx : SSLContext, larg : ULong) : ULong
+
+  fun ssl_library_init = rand : LibC::Int
+  fun ssl_load_error_strings = rand : LibC::Int
 end
 
 abstract class OpenSSL::SSL::Context
@@ -41,6 +48,19 @@ abstract class OpenSSL::SSL::Context
   # Removes modes from the TLS context.
   def remove_modes(mode : OpenSSL::SSL::Modes)
     OpenSSL::SSL::Modes.new LibSSL.ssl_ctx_clear_mode(@handle, mode)
+  end
+
+  # Returns the current options set on the TLS context.
+  def options
+    OpenSSL::SSL::Options.new LibSSL.ssl_ctx_get_options(@handle)
+  end
+
+  def add_options(options : OpenSSL::SSL::Options)
+    OpenSSL::SSL::Options.new LibSSL.ssl_ctx_set_options(@handle, options)
+  end
+
+  def remove_options(options : OpenSSL::SSL::Options)
+    OpenSSL::SSL::Options.new LibSSL.ssl_ctx_clear_options(@handle, options)
   end
 end
 
