@@ -83,11 +83,12 @@ class QUIC::Client
     bytes_read = LibLsquic.stream_read(s, buffer, buffer.size)
 
     if bytes_read > 0
-      if stream_ctx.writer && !stream_ctx.writer.try &.closed?
+      begin
         stream_ctx.writer.try &.write buffer[0, bytes_read]
-      else
+      rescue ex
         LibLsquic.stream_shutdown(s, 0)
         LibLsquic.stream_wantread(s, 0)
+        return Box.box(stream_ctx)
       end
     elsif bytes_read == 0
       LibLsquic.stream_shutdown(s, 0)
