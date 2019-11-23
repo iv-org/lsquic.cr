@@ -77,36 +77,38 @@ class QUIC::Client
   end
 
   ON_READ = ->(s : LibLsquic::StreamT, stream_if_ctx : Void*) do
-    stream_ctx = Box(StreamCtx).unbox(stream_if_ctx)
+    begin
+      stream_ctx = Box(StreamCtx).unbox(stream_if_ctx)
 
-    buffer = Bytes.new(0x600)
-    bytes_read = LibLsquic.stream_read(s, buffer, buffer.size)
+      buffer = Bytes.new(0x600)
+      bytes_read = LibLsquic.stream_read(s, buffer, buffer.size)
 
-    if bytes_read > 0
-      begin
+      if bytes_read > 0
         stream_ctx.writer.try &.write buffer[0, bytes_read]
-      rescue ex
+      elsif bytes_read == 0
         LibLsquic.stream_shutdown(s, 0)
         LibLsquic.stream_wantread(s, 0)
-        return Box.box(stream_ctx)
+      elsif LibLsquic.stream_is_rejected(s) == 1
+        LibLsquic.stream_close(s)
+      else
+        "Could not read response"
       end
-    elsif bytes_read == 0
+      Box.box(stream_ctx)
+    rescue ex
       LibLsquic.stream_shutdown(s, 0)
       LibLsquic.stream_wantread(s, 0)
-    elsif LibLsquic.stream_is_rejected(s) == 1
-      LibLsquic.stream_close(s)
-    else
-      "Could not read response"
+      Box.box(stream_ctx)
     end
-
-    Box.box(stream_ctx)
   end
 
   ON_CLOSE = ->(s : LibLsquic::StreamT, stream_if_ctx : Void*) do
-    stream_ctx = Box(StreamCtx).unbox(stream_if_ctx)
-    stream_ctx.writer.try &.close
-
-    Box.box(stream_ctx)
+    begin
+      stream_ctx = Box(StreamCtx).unbox(stream_if_ctx)
+      stream_ctx.writer.try &.close
+      Box.box(stream_ctx)
+    rescue ex
+      Box.box(stream_ctx)
+    end
   end
 
   EA_PACKETS_OUT = ->(peer_ctx : Void*, specs : LibLsquic::OutSpec*, count : LibC::UInt) do
