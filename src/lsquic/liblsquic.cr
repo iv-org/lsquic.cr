@@ -108,9 +108,7 @@ lib LibLsquic
   end
 
   type ConnT = Void*
-  type ConnCtxT = Void*
   type StreamT = Void*
-  type StreamCtxT = Void*
   enum HskStatus
     LsqHskFail     = 0
     LsqHskOk       = 1
@@ -271,7 +269,7 @@ lib LibLsquic
   fun engine_send_unsent_packets = lsquic_engine_send_unsent_packets(engine : EngineT)
   fun engine_destroy = lsquic_engine_destroy(x0 : EngineT)
   fun conn_n_avail_streams = lsquic_conn_n_avail_streams(x0 : ConnT) : LibC::UInt
-  fun conn_make_stream = lsquic_conn_make_stream(x0 : ConnT) : ConnCtxT
+  fun conn_make_stream = lsquic_conn_make_stream(x0 : ConnT) : Void*
   fun conn_n_pending_streams = lsquic_conn_n_pending_streams(x0 : ConnT) : LibC::UInt
   fun conn_cancel_pending_streams = lsquic_conn_cancel_pending_streams(x0 : ConnT, n : LibC::UInt) : LibC::UInt
   fun conn_going_away = lsquic_conn_going_away(x0 : ConnT)
@@ -304,7 +302,7 @@ lib LibLsquic
   fun conn_get_server_cert_chain = lsquic_conn_get_server_cert_chain(x0 : ConnT) : StackStX509*
   fun stream_id = lsquic_stream_id(s : StreamT) : StreamIdT
   alias StreamIdT = Uint64T
-  fun stream_get_ctx = lsquic_stream_get_ctx(s : StreamT) : StreamCtxT
+  fun stream_get_ctx = lsquic_stream_get_ctx(s : StreamT) : Void*
   fun stream_is_pushed = lsquic_stream_is_pushed(s : StreamT) : LibC::Int
   fun stream_is_rejected = lsquic_stream_is_rejected(s : StreamT) : LibC::Int
   fun stream_refuse_push = lsquic_stream_refuse_push(s : StreamT) : LibC::Int
@@ -350,8 +348,8 @@ lib LibLsquic
   fun engine_cooldown = lsquic_engine_cooldown(x0 : EngineT)
   fun hsk_getssl = lsquic_hsk_getssl(conn : ConnT) : SslSt*
   alias SslSt = Void
-  fun conn_get_ctx = lsquic_conn_get_ctx(x0 : ConnT) : ConnCtxT
-  fun conn_set_ctx = lsquic_conn_set_ctx(x0 : ConnT, x1 : ConnCtxT)
+  fun conn_get_ctx = lsquic_conn_get_ctx(x0 : ConnT) : Void*
+  fun conn_set_ctx = lsquic_conn_set_ctx(x0 : ConnT, x1 : Void*)
   fun conn_get_peer_ctx = lsquic_conn_get_peer_ctx(x0 : ConnT, local_sa : LibC::Sockaddr*) : Void*
   fun conn_abort = lsquic_conn_abort(x0 : ConnT)
   fun get_alt_svc_versions = lsquic_get_alt_svc_versions(versions : LibC::UInt) : LibC::Char*
