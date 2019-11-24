@@ -13,8 +13,8 @@ module QUIC
   class Client
     STREAM_READF = ->(stream_if_ctx : Void*, buf : UInt8*, buf_len : LibC::SizeT, fin : LibC::Int) do
       stream_ctx = Box(StreamCtx).unbox(stream_if_ctx)
-      bytes_read = stream_ctx.io.unbuffered_write Slice.new(buf, buf_len)
-      bytes_read.to_u64
+      stream_ctx.io.write Slice.new(buf, buf_len)
+      buf_len
     end
 
     ON_NEW_STREAM = ->(stream_if_ctx : Void*, s : LibLsquic::StreamT) do
