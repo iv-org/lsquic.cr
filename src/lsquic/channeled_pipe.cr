@@ -53,7 +53,6 @@ class IO::ChanneledPipe < IO
     raise "Write not allowed on read side" if @direction == :r
     raise "Closed stream" if @closed
     @channel.send slice.clone
-    slice.size
   end
 
   def close_channel
