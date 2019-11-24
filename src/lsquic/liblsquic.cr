@@ -67,10 +67,8 @@ lib LibLsquic
     id : Uint64T
   end
 
-  alias X__Uint8T = UInt8
-  alias Uint8T = X__Uint8T
-  alias X__Uint64T = LibC::ULong
-  alias Uint64T = X__Uint64T
+  alias Uint8T = UInt8
+  alias Uint64T = LibC::ULong
   alias Engine = Void
   alias Conn = Void
   alias ConnCtx = Void
@@ -163,8 +161,7 @@ lib LibLsquic
     es_cc_algo : LibC::UInt
   end
 
-  alias X__Uint32T = LibC::UInt
-  alias Uint32T = X__Uint32T
+  alias Uint32T = LibC::UInt
   fun engine_init_settings = lsquic_engine_init_settings(x0 : EngineSettings*, engine_flags : LibC::UInt)
   fun engine_check_settings = lsquic_engine_check_settings(settings : EngineSettings*, engine_flags : LibC::UInt, err_buf : LibC::Char*, err_buf_sz : LibC::SizeT) : LibC::Int
 
@@ -183,8 +180,7 @@ lib LibLsquic
     shi_lookup : (Void*, Void*, LibC::UInt, Void**, LibC::UInt* -> LibC::Int)
   end
 
-  alias X__TimeT = LibC::Long
-  alias TimeT = X__TimeT
+  alias TimeT = LibC::Long
 
   struct PackoutMemIf
     pmi_allocate : (Void*, Void*, LibC::UShort, LibC::Char -> Void*)
@@ -276,8 +272,7 @@ lib LibLsquic
   fun conn_close = lsquic_conn_close(x0 : ConnT)
   fun stream_wantread = lsquic_stream_wantread(s : StreamT, is_want : LibC::Int) : LibC::Int
   fun stream_read = lsquic_stream_read(s : StreamT, buf : Void*, len : LibC::SizeT) : SsizeT
-  alias X__SsizeT = LibC::Long
-  alias SsizeT = X__SsizeT
+  alias SsizeT = LibC::Long
   fun stream_readv = lsquic_stream_readv(s : StreamT, x1 : Iovec*, iovcnt : LibC::Int) : SsizeT
   fun stream_readf = lsquic_stream_readf(s : StreamT, readf : (Void*, UInt8*, LibC::SizeT, LibC::Int -> LibC::SizeT), ctx : Void*) : SsizeT
   fun stream_wantwrite = lsquic_stream_wantwrite(s : StreamT, is_want : LibC::Int) : LibC::Int
