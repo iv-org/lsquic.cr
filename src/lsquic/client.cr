@@ -124,6 +124,8 @@ module QUIC
     ENGINE_FLAGS = LibLsquic::LSENG_HTTP
     LibLsquic.global_init(ENGINE_FLAGS & LibLsquic::LSENG_SERVER ? LibLsquic::GLOBAL_SERVER : LibLsquic::GLOBAL_CLIENT)
 
+    property family : Socket::Family = Socket::Family::UNSPEC
+
     # The set of possible valid body types.
     alias BodyType = String | Bytes | IO | Nil
 
@@ -135,6 +137,7 @@ module QUIC
     @dns_timeout : Float64?
     @connect_timeout : Float64?
     @read_timeout : Float64?
+    @socket : UDPSocket?
 
     def initialize(@host : String, port = nil, tls : Bool | OpenSSL::SSL::Context::Client = false)
       check_host_only(@host)
@@ -150,7 +153,7 @@ module QUIC
 
       @port = (port || 443).to_i
       @stream_channel = Channel(StreamCtx?).new(20)
-      spawn run_engine
+      @engine_open = false
     end
 
     def run_engine
@@ -182,17 +185,7 @@ module QUIC
 
       engine = LibLsquic.engine_new(ENGINE_FLAGS, pointerof(engine_api))
       hostname = host.starts_with?('[') && host.ends_with?(']') ? host[1..-2] : host
-
-      socket = UDPSocket.new
-      socket.bind Socket::IPAddress.new("0.0.0.0", 0)
-      socket.read_timeout = @read_timeout if @read_timeout
-      Socket::Addrinfo.udp(@host, @port, timeout: @dns_timeout) do |addrinfo|
-        socket.connect(addrinfo, timeout: @connect_timeout) do |error|
-          error
-        end
-      end
-      socket.sync = false
-      engine_closed = false
+      @engine_open = true
 
       conn = LibLsquic.engine_connect(engine, LibLsquic::Version::Lsqver046, socket.local_address, socket.remote_address, Box.box(socket), nil, hostname, 0, nil, 0, nil, 0)
       spawn do
@@ -201,18 +194,38 @@ module QUIC
           LibLsquic.conn_make_stream(conn)
           LibLsquic.engine_process_conns(engine)
         end
-        engine_closed = true
+        @engine_open = false
         LibLsquic.engine_destroy(engine)
       end
 
       buffer = Bytes.new(0x600)
       loop do
         bytes_read = socket.read buffer
-        break if engine_closed
+        break if !@engine_open
         LibLsquic.engine_packet_in(engine, buffer[0, bytes_read], bytes_read, socket.local_address, socket.remote_address, Box.box(socket), 0) if bytes_read != 0
         LibLsquic.engine_process_conns(engine)
       end
-      socket.close
+      @socket.try &.close
+      @socket = nil
+    end
+
+    def socket : UDPSocket
+      socket = @socket
+      return socket.not_nil! if @socket
+
+      socket = UDPSocket.new
+      socket.bind Socket::IPAddress.new("0.0.0.0", 0)
+      Socket::Addrinfo.udp(@host, @port, timeout: @dns_timeout, family: @family) do |addrinfo|
+        socket.connect(addrinfo, timeout: @connect_timeout) do |error|
+          close
+          error
+        end
+      end
+
+      socket.read_timeout = @read_timeout if @read_timeout
+      socket.sync = false
+
+      @socket = socket
     end
 
     private def check_host_only(string : String)
@@ -410,6 +423,8 @@ module QUIC
       set_defaults request
       run_before_request_callbacks(request)
 
+      spawn run_engine if !@engine_open
+
       reader, writer = IO::ChanneledPipe.new
       stream_ctx = StreamCtx.new(request, writer)
       @stream_channel.send stream_ctx
@@ -460,12 +475,8 @@ module QUIC
       end
     end
 
-    def destroy_engine
-      @stream_channel.send nil
-    end
-
     def close
-      # TODO
+      @stream_channel.send nil
     end
 
     private def new_request(method, path, headers, body : BodyType)
