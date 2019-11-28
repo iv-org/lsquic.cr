@@ -124,7 +124,7 @@ module QUIC
     ENGINE_FLAGS = LibLsquic::LSENG_HTTP
     LibLsquic.global_init(ENGINE_FLAGS & LibLsquic::LSENG_SERVER ? LibLsquic::GLOBAL_SERVER : LibLsquic::GLOBAL_CLIENT)
 
-    property family : Socket::Family = Socket::Family::UNSPEC
+    property family : Socket::Family = Socket::Family::INET
 
     # The set of possible valid body types.
     alias BodyType = String | Bytes | IO | Nil
@@ -213,8 +213,16 @@ module QUIC
       socket = @socket
       return socket.not_nil! if @socket
 
-      socket = UDPSocket.new
-      socket.bind Socket::IPAddress.new("0.0.0.0", 0)
+      socket = UDPSocket.new @family
+      case @family
+      when Socket::Family::INET
+        socket.bind Socket::IPAddress.new("0.0.0.0", 0)
+      when Socket::Family::INET6
+        socket.bind Socket::IPAddress.new("::", 0)
+      else
+        socket.bind Socket::IPAddress.new("0.0.0.0", 0)
+      end
+
       Socket::Addrinfo.udp(@host, @port, timeout: @dns_timeout, family: @family) do |addrinfo|
         socket.connect(addrinfo, timeout: @connect_timeout) do |error|
           close
@@ -477,6 +485,7 @@ module QUIC
 
     def close
       @stream_channel.send nil
+      Fiber.yield
     end
 
     private def new_request(method, path, headers, body : BodyType)
