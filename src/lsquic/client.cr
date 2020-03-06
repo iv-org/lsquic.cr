@@ -207,7 +207,11 @@ module QUIC
 
       buffer = Bytes.new(0x600)
       loop do
-        bytes_read = socket.read buffer
+        begin
+          bytes_read = socket.read buffer
+        rescue ex
+          break
+        end
         break if !@engine_open
         LibLsquic.engine_packet_in(engine, buffer[0, bytes_read], bytes_read, socket.local_address, socket.remote_address, Box.box(socket), 0) if bytes_read != 0
         LibLsquic.engine_process_conns(engine)
@@ -217,8 +221,7 @@ module QUIC
     end
 
     def socket : UDPSocket
-      socket = @socket
-      return socket.not_nil! if @socket
+      return @socket.as(UDPSocket) if @socket
 
       socket = UDPSocket.new @family
       case @family
@@ -494,6 +497,8 @@ module QUIC
     def close
       @stream_channel.send nil
       Fiber.yield
+      @socket.try &.close
+      @socket = nil
     end
 
     private def new_request(method, path, headers, body : BodyType)
