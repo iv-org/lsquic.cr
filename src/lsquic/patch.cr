@@ -1,6 +1,5 @@
 require "openssl"
 
-@[Link(ldflags: "#{__DIR__}/ext/liblsquic.a #{__DIR__}/ext/libcrypto.a")]
 lib LibCrypto
   fun evp_ripemd160 = EVP_sha1 : EVP_MD
   fun sk_free = sk_free(st : Void*)
@@ -12,8 +11,9 @@ lib LibCrypto
   fun err_load_crypto_strings = rand : LibC::Int
 end
 
-@[Link(ldflags: "#{__DIR__}/ext/libssl.a")]
 lib LibSSL
+  {% ssl_version = "1.1.0" %}
+
   fun ssl_set_tlsext_host_name = SSL_set_tlsext_host_name(handle : SSL, name : Char*) : Long
   fun ssl_ctx_set_tmp_ecdh = SSL_CTX_set_tmp_ecdh(ctx : SSLContext, parg : Void*) : ULong
   fun ssl_ctx_get_mode = SSL_CTX_get_mode(ctx : SSLContext) : ULong
@@ -25,43 +25,6 @@ lib LibSSL
 
   fun ssl_library_init = rand : LibC::Int
   fun ssl_load_error_strings = rand : LibC::Int
-end
-
-abstract class OpenSSL::SSL::Context
-  def set_tmp_ecdh_key(curve = LibCrypto::NID_X9_62_prime256v1)
-    key = LibCrypto.ec_key_new_by_curve_name(curve)
-    raise OpenSSL::Error.new("ec_key_new_by_curve_name") if key.null?
-    LibSSL.ssl_ctx_set_tmp_ecdh(@handle, key)
-    LibCrypto.ec_key_free(key)
-  end
-
-  # Returns the current modes set on the TLS context.
-  def modes
-    OpenSSL::SSL::Modes.new LibSSL.ssl_ctx_get_mode(@handle)
-  end
-
-  # Adds modes to the TLS context.
-  def add_modes(mode : OpenSSL::SSL::Modes)
-    OpenSSL::SSL::Modes.new LibSSL.ssl_ctx_set_mode(@handle, mode)
-  end
-
-  # Removes modes from the TLS context.
-  def remove_modes(mode : OpenSSL::SSL::Modes)
-    OpenSSL::SSL::Modes.new LibSSL.ssl_ctx_clear_mode(@handle, mode)
-  end
-
-  # Returns the current options set on the TLS context.
-  def options
-    OpenSSL::SSL::Options.new LibSSL.ssl_ctx_get_options(@handle)
-  end
-
-  def add_options(options : OpenSSL::SSL::Options)
-    OpenSSL::SSL::Options.new LibSSL.ssl_ctx_set_options(@handle, options)
-  end
-
-  def remove_options(options : OpenSSL::SSL::Options)
-    OpenSSL::SSL::Options.new LibSSL.ssl_ctx_clear_options(@handle, options)
-  end
 end
 
 struct OpenSSL::BIO
@@ -160,6 +123,43 @@ struct OpenSSL::BIO
     @boxed_io = Box(IO).box(io)
 
     BIO.set_data(@bio, @boxed_io)
+  end
+end
+
+abstract class OpenSSL::SSL::Context
+  def set_tmp_ecdh_key(curve = LibCrypto::NID_X9_62_prime256v1)
+    key = LibCrypto.ec_key_new_by_curve_name(curve)
+    raise OpenSSL::Error.new("ec_key_new_by_curve_name") if key.null?
+    LibSSL.ssl_ctx_set_tmp_ecdh(@handle, key)
+    LibCrypto.ec_key_free(key)
+  end
+
+  # Returns the current modes set on the TLS context.
+  def modes
+    OpenSSL::SSL::Modes.new LibSSL.ssl_ctx_get_mode(@handle)
+  end
+
+  # Adds modes to the TLS context.
+  def add_modes(mode : OpenSSL::SSL::Modes)
+    OpenSSL::SSL::Modes.new LibSSL.ssl_ctx_set_mode(@handle, mode)
+  end
+
+  # Removes modes from the TLS context.
+  def remove_modes(mode : OpenSSL::SSL::Modes)
+    OpenSSL::SSL::Modes.new LibSSL.ssl_ctx_clear_mode(@handle, mode)
+  end
+
+  # Returns the current options set on the TLS context.
+  def options
+    OpenSSL::SSL::Options.new LibSSL.ssl_ctx_get_options(@handle)
+  end
+
+  def add_options(options : OpenSSL::SSL::Options)
+    OpenSSL::SSL::Options.new LibSSL.ssl_ctx_set_options(@handle, options)
+  end
+
+  def remove_options(options : OpenSSL::SSL::Options)
+    OpenSSL::SSL::Options.new LibSSL.ssl_ctx_clear_options(@handle, options)
   end
 end
 

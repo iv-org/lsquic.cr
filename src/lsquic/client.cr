@@ -11,6 +11,8 @@ module QUIC
   end
 
   class Client
+    REQUIRED_HEADERS = {":method", ":scheme", ":path", ":authority"}
+
     def self.stream_readf(stream_if_ctx : Void*, buf : UInt8*, buf_len : LibC::SizeT, fin : LibC::Int)
       stream_ctx = Box(StreamCtx).unbox(stream_if_ctx)
       stream_ctx.io.write Slice.new(buf, buf_len)
@@ -30,9 +32,7 @@ module QUIC
         .try { |c| LibLsquic.conn_get_ctx(c) }
         .try { |c| Box(StreamCtx).unbox(c) }
 
-      if LibLsquic.stream_is_pushed(s) != 0
-        return Box.box(stream_ctx)
-      end
+      return Box.box(stream_ctx) if LibLsquic.stream_is_pushed(s) != 0
 
       LibLsquic.stream_wantwrite(s, 1)
       Box.box(stream_ctx)
@@ -40,32 +40,21 @@ module QUIC
 
     def self.on_write(s : LibLsquic::StreamT, stream_if_ctx : Void*)
       stream_ctx = Box(StreamCtx).unbox(stream_if_ctx)
+      request_headers = stream_ctx.request.headers
 
-      headers = [] of LibLsquic::HttpHeader
-      (stream_ctx.request.headers.to_a.sort_by { |k, v| {":authority", ":path", ":scheme", ":method"}.index(k) || -1 }).reverse.each do |tuple|
-        name, values = tuple
-        name = name.downcase
-
-        values.each do |value|
-          name_vec = LibLsquic::Iovec.new
-          name_vec.iov_base = name.to_slice
-          name_vec.iov_len = name.bytesize
-
-          value_vec = LibLsquic::Iovec.new
-          value_vec.iov_base = value.to_slice
-          value_vec.iov_len = value.bytesize
-
-          header = LibLsquic::HttpHeader.new
-          header.name = name_vec
-          header.value = value_vec
-
-          headers << header
-        end
+      headers = [] of LibLsquic::LsxpackHeader
+      REQUIRED_HEADERS.each do |name|
+        value = stream_ctx.request.headers[name]
+        headers << LibLsquic::LsxpackHeader.new(name_ptr: name, name_len: name.bytesize, buf: value, val_len: value.bytesize)
       end
 
-      http_headers = LibLsquic::HttpHeaders.new
-      http_headers.count = headers.size
-      http_headers.headers = headers.to_unsafe
+      request_headers.each do |name, values|
+        name = name.downcase
+        next if REQUIRED_HEADERS.includes? name
+        headers << LibLsquic::LsxpackHeader.new(name_ptr: name, name_len: name.bytesize, buf: values[0], val_len: values[0].bytesize)
+      end
+
+      http_headers = LibLsquic::HttpHeaders.new(count: headers.size, headers: headers.to_unsafe)
 
       raise "Could not send headers" if LibLsquic.stream_send_headers(s, pointerof(http_headers), stream_ctx.request.body ? 0 : 1) != 0
 
@@ -194,7 +183,16 @@ module QUIC
       hostname = host.starts_with?('[') && host.ends_with?(']') ? host[1..-2] : host
       @engine_open = true
 
-      conn = LibLsquic.engine_connect(engine, LibLsquic::Version::Lsqver046, socket.local_address, socket.remote_address, Box.box(socket), nil, hostname, 0, nil, 0, nil, 0)
+      conn = LibLsquic.engine_connect(
+        engine,
+        LibLsquic::Version::Lsqver050,
+        socket.local_address,
+        socket.remote_address,
+        Box.box(socket), nil,
+        hostname, 0,
+        nil, 0,
+        nil, 0
+      )
       spawn do
         while stream_ctx = @stream_channel.receive
           LibLsquic.conn_set_ctx(conn, Box.box(stream_ctx))

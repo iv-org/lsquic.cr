@@ -1,4 +1,4 @@
-@[Link(ldflags: "#{__DIR__}/ext/liblsquic.a -lz")]
+@[Link(ldflags: "#{__DIR__}/ext/liblsquic.a")]
 lib LibLsquic
   MAX_CID_LEN                                = 20
   QQUIC_CID_LEN                              =  8
@@ -63,12 +63,10 @@ lib LibLsquic
   alias UintFast8T = UInt8
 
   union CidUCid
-    buf : Uint8T[20]
-    id : Uint64T
+    buf : LibC::UInt8T[20]
+    id : LibC::UInt64T
   end
 
-  alias Uint8T = UInt8
-  alias Uint64T = LibC::ULong
   alias Engine = Void
   alias Conn = Void
   alias ConnCtx = Void
@@ -77,15 +75,26 @@ lib LibLsquic
 
   struct HttpHeaders
     count : LibC::Int
-    headers : HttpHeader*
+    headers : LsxpackHeader*
   end
 
-  struct HttpHeader
-    name : Iovec
-    value : Iovec
+  struct LsxpackHeader
+    buf : LibC::Char*
+    name_ptr : LibC::Char*
+    name_hash : LibC::UInt32T
+    nameval_hash : LibC::UInt32T
+    name_offset : LibC::UInt16T
+    name_len : LibC::UInt16T
+    val_offset : LibC::UInt16T
+    val_len : LibC::UInt16T
+    chain_next_idx : LibC::UInt16T
+    hpack_index : LibC::UInt8T
+    qpack_index : LibC::UInt8T
+    app_index : LibC::UInt8T
+    flags : LibC::UInt8T
+    indexed_type : LibC::UInt8T
+    dec_overhead : LibC::UInt8T
   end
-
-  type HttpHeaderT = HttpHeader
 
   struct Iovec
     iov_base : UInt8*
@@ -126,12 +135,11 @@ lib LibLsquic
     es_silent_close : LibC::Int
     es_max_header_list_size : LibC::UInt
     es_ua : LibC::Char*
-    es_sttl : Uint64T
-    es_pdmd : Uint32T
-    es_aead : Uint32T
-    es_kexs : Uint32T
+    es_sttl : LibC::UInt64T
+    es_pdmd : LibC::UInt32T
+    es_aead : LibC::UInt32T
+    es_kexs : LibC::UInt32T
     es_max_inchoate : LibC::UInt
-    es_support_srej : LibC::Int
     es_support_push : LibC::Int
     es_support_tcid0 : LibC::Int
     es_support_nstp : LibC::Int
@@ -159,9 +167,13 @@ lib LibLsquic
     es_ecn : LibC::Int
     es_allow_migration : LibC::Int
     es_cc_algo : LibC::UInt
+    es_ql_bits : LibC::Int
+    es_spin : LibC::Int
+    es_delayed_acks : LibC::Int
+    es_timestamps : LibC::Int
+    es_max_packet_size_rx : LibC::UInt16T
   end
 
-  alias Uint32T = LibC::UInt
   fun engine_init_settings = lsquic_engine_init_settings(x0 : EngineSettings*, engine_flags : LibC::UInt)
   fun engine_check_settings = lsquic_engine_check_settings(settings : EngineSettings*, engine_flags : LibC::UInt, err_buf : LibC::Char*, err_buf_sz : LibC::SizeT) : LibC::Int
 
@@ -189,25 +201,17 @@ lib LibLsquic
   end
 
   struct HsetIf
-    hsi_create_header_set : (Void*, LibC::Int -> Void*)
-    hsi_process_header : (Void*, LibC::UInt, LibC::Char*, LibC::UInt, LibC::Char*, LibC::UInt -> HeaderStatus)
+    hsi_create_header_set : (Void*, StreamT, LibC::Int -> Void*)
+    hsi_prepare_decode : (Void*, LsxpackHeader*, LibC::SizeT -> LsxpackHeader*)
+    hsi_process_header : (Void*, LsxpackHeader* -> LibC::Int)
     hsi_discard_header_set : (Void* -> Void)
+    hsi_flags : HsiFlag
   end
 
-  enum HeaderStatus
-    HdrOk                    =  0
-    HdrErrDuplicatePsdoHdr   =  1
-    HdrErrIncomplReqPsdoHdr  =  2
-    HdrErrUnnecReqPsdoHdr    =  3
-    HdrErrBadReqHeader       =  4
-    HdrErrIncomplRespPsdoHdr =  5
-    HdrErrUnnecRespPsdoHdr   =  6
-    HdrErrUnknownPsdoHdr     =  7
-    HdrErrUppercaseHeader    =  8
-    HdrErrMisplacedPsdoHdr   =  9
-    HdrErrMissingPsdoHdr     = 10
-    HdrErrHeadersTooLarge    = 11
-    HdrErrNomem              = 12
+  enum HsiFlag
+    HsiHttp1X      = 2
+    HsiHashName    = 4
+    HsiHashNameval = 8
   end
 
   struct KeylogIf
@@ -239,27 +243,31 @@ lib LibLsquic
     ea_hsi_ctx : Void*
     ea_keylog_if : KeylogIf*
     ea_keylog_ctx : Void*
+    ea_alpn : LibC::Char*
   end
 
   alias PacketsOutF = (Void*, OutSpec*, LibC::UInt -> LibC::Int)
   alias SslCtxSt = Void
-  alias LookupCertF = (Void*, LibC::Sockaddr*, LibC::Char* -> SslCtxSt*)
+  alias Sockaddr = LibC::Sockaddr
+  alias LookupCertF = (Void*, Sockaddr*, LibC::Char* -> SslCtxSt*)
   type CidT = Cid
   alias CidsUpdateF = (Void*, Void**, CidT*, LibC::UInt -> Void)
   alias StackStX509 = Void
-  fun engine_new = lsquic_engine_new(engine_flags : LibC::UInt, x1 : EngineApi*) : EngineT
+  fun engine_new = lsquic_engine_new(engine_flags : LibC::UInt, api : EngineApi*) : EngineT
   type EngineT = Void*
-  fun engine_connect = lsquic_engine_connect(x0 : EngineT, x1 : Version, local_sa : LibC::Sockaddr*, peer_sa : LibC::Sockaddr*, peer_ctx : Void*, conn_ctx : Void*, hostname : LibC::Char*, max_packet_size : LibC::UShort, zero_rtt : UInt8*, zero_rtt_len : LibC::SizeT, token : UInt8*, token_sz : LibC::SizeT) : ConnT
+  fun engine_connect = lsquic_engine_connect(x0 : EngineT, x1 : Version, local_sa : Sockaddr*, peer_sa : Sockaddr*, peer_ctx : Void*, conn_ctx : Void*, hostname : LibC::Char*, max_packet_size : LibC::UShort, zero_rtt : UInt8*, zero_rtt_len : LibC::SizeT, token : UInt8*, token_sz : LibC::SizeT) : ConnT
+
   enum Version
-    Lsqver039    = 0
-    Lsqver043    = 1
-    Lsqver046    = 2
-    LsqverId23   = 3
-    LsqverId24   = 4
+    Lsqver043    = 0
+    Lsqver046    = 1
+    Lsqver050    = 2
+    LsqverId25   = 3
+    LsqverId27   = 4
     LsqverVerneg = 5
     NLsqver      = 6
   end
-  fun engine_packet_in = lsquic_engine_packet_in(x0 : EngineT, packet_in_data : UInt8*, packet_in_size : LibC::SizeT, sa_local : LibC::Sockaddr*, sa_peer : LibC::Sockaddr*, peer_ctx : Void*, ecn : LibC::Int) : LibC::Int
+
+  fun engine_packet_in = lsquic_engine_packet_in(x0 : EngineT, packet_in_data : UInt8*, packet_in_size : LibC::SizeT, sa_local : Sockaddr*, sa_peer : Sockaddr*, peer_ctx : Void*, ecn : LibC::Int) : LibC::Int
   fun engine_process_conns = lsquic_engine_process_conns(engine : EngineT)
   fun engine_has_unsent_packets = lsquic_engine_has_unsent_packets(engine : EngineT) : LibC::Int
   fun engine_send_unsent_packets = lsquic_engine_send_unsent_packets(engine : EngineT)
@@ -271,13 +279,12 @@ lib LibLsquic
   fun conn_going_away = lsquic_conn_going_away(x0 : ConnT)
   fun conn_close = lsquic_conn_close(x0 : ConnT)
   fun stream_wantread = lsquic_stream_wantread(s : StreamT, is_want : LibC::Int) : LibC::Int
-  fun stream_read = lsquic_stream_read(s : StreamT, buf : Void*, len : LibC::SizeT) : SsizeT
-  alias SsizeT = LibC::Long
-  fun stream_readv = lsquic_stream_readv(s : StreamT, x1 : Iovec*, iovcnt : LibC::Int) : SsizeT
-  fun stream_readf = lsquic_stream_readf(s : StreamT, readf : (Void*, UInt8*, LibC::SizeT, LibC::Int -> LibC::SizeT), ctx : Void*) : SsizeT
+  fun stream_read = lsquic_stream_read(s : StreamT, buf : Void*, len : LibC::SizeT) : LibC::SizeT
+  fun stream_readv = lsquic_stream_readv(s : StreamT, vec : Iovec*, iovcnt : LibC::Int) : LibC::SizeT
+  fun stream_readf = lsquic_stream_readf(s : StreamT, readf : (Void*, UInt8*, LibC::SizeT, LibC::Int -> LibC::SizeT), ctx : Void*) : LibC::SizeT
   fun stream_wantwrite = lsquic_stream_wantwrite(s : StreamT, is_want : LibC::Int) : LibC::Int
-  fun stream_write = lsquic_stream_write(s : StreamT, buf : Void*, len : LibC::SizeT) : SsizeT
-  fun stream_writev = lsquic_stream_writev(s : StreamT, vec : Iovec*, count : LibC::Int) : SsizeT
+  fun stream_write = lsquic_stream_write(s : StreamT, buf : Void*, len : LibC::SizeT) : LibC::SizeT
+  fun stream_writev = lsquic_stream_writev(s : StreamT, vec : Iovec*, count : LibC::Int) : LibC::SizeT
 
   struct Reader
     lsqr_read : (Void*, Void*, LibC::SizeT -> LibC::SizeT)
@@ -285,18 +292,17 @@ lib LibLsquic
     lsqr_ctx : Void*
   end
 
-  fun stream_writef = lsquic_stream_writef(x0 : StreamT, x1 : Reader*) : SsizeT
+  fun stream_writef = lsquic_stream_writef(x0 : StreamT, x1 : Reader*) : LibC::SizeT
   fun stream_flush = lsquic_stream_flush(s : StreamT) : LibC::Int
-  fun stream_send_headers = lsquic_stream_send_headers(s : StreamT, h : HttpHeaders*, eos : LibC::Int) : LibC::Int
-  type HttpHeadersT = HttpHeaders
+  fun stream_send_headers = lsquic_stream_send_headers(s : StreamT, headers : HttpHeaders*, eos : LibC::Int) : LibC::Int
   fun stream_get_hset = lsquic_stream_get_hset(x0 : StreamT) : Void*
-  fun conn_push_stream = lsquic_conn_push_stream(c : ConnT, hdr_set : Void*, s : StreamT, url : Iovec*, authority : Iovec*, headers : HttpHeaders*) : LibC::Int
+  fun conn_push_stream = lsquic_conn_push_stream(c : ConnT, hdr_set : Void*, s : StreamT, headers : HttpHeaders*) : LibC::Int
   fun conn_is_push_enabled = lsquic_conn_is_push_enabled(x0 : ConnT) : LibC::Int
   fun stream_shutdown = lsquic_stream_shutdown(s : StreamT, how : LibC::Int) : LibC::Int
   fun stream_close = lsquic_stream_close(s : StreamT) : LibC::Int
   fun conn_get_server_cert_chain = lsquic_conn_get_server_cert_chain(x0 : ConnT) : StackStX509*
   fun stream_id = lsquic_stream_id(s : StreamT) : StreamIdT
-  alias StreamIdT = Uint64T
+  alias StreamIdT = LibC::UInt64T
   fun stream_get_ctx = lsquic_stream_get_ctx(s : StreamT) : Void*
   fun stream_is_pushed = lsquic_stream_is_pushed(s : StreamT) : LibC::Int
   fun stream_is_rejected = lsquic_stream_is_rejected(s : StreamT) : LibC::Int
@@ -305,16 +311,16 @@ lib LibLsquic
   fun stream_priority = lsquic_stream_priority(s : StreamT) : LibC::UInt
   fun stream_set_priority = lsquic_stream_set_priority(s : StreamT, priority : LibC::UInt) : LibC::Int
   fun stream_conn = lsquic_stream_conn(s : StreamT) : ConnT
-  fun conn_get_stream_by_id = lsquic_conn_get_stream_by_id(c : ConnT, stream_id : StreamIdT) : StreamT
   fun conn_id = lsquic_conn_id(c : ConnT) : CidT*
   fun conn_get_engine = lsquic_conn_get_engine(c : ConnT) : EngineT
-  fun conn_get_sockaddr = lsquic_conn_get_sockaddr(c : ConnT, local : LibC::Sockaddr**, peer : LibC::Sockaddr**) : LibC::Int
+  fun conn_get_sockaddr = lsquic_conn_get_sockaddr(c : ConnT, local : Sockaddr**, peer : Sockaddr**) : LibC::Int
 
   struct LoggerIf
     log_buf : (Void*, LibC::Char*, LibC::SizeT -> LibC::Int)
   end
 
   fun logger_init = lsquic_logger_init(x0 : LoggerIf*, logger_ctx : Void*, x2 : LoggerTimestampStyle)
+
   enum LoggerTimestampStyle
     LltsNone             = 0
     LltsHhmmssms         = 1
@@ -324,6 +330,7 @@ lib LibLsquic
     LltsYyyymmddHhmmssus = 5
     NLlts                = 6
   end
+
   fun set_log_level = lsquic_set_log_level(log_level : LibC::Char*) : LibC::Int
   fun logger_lopt = lsquic_logger_lopt(optarg : LibC::Char*) : LibC::Int
   fun engine_quic_versions = lsquic_engine_quic_versions(x0 : EngineT) : LibC::UInt
@@ -337,15 +344,14 @@ lib LibLsquic
     LsqCryQuic   = 0
     LsqCryTlSv13 = 1
   end
+
   fun conn_crypto_cipher = lsquic_conn_crypto_cipher(c : ConnT) : LibC::Char*
   fun str2ver = lsquic_str2ver(str : LibC::Char*, len : LibC::SizeT) : Version
   fun alpn2ver = lsquic_alpn2ver(alpn : LibC::Char*, len : LibC::SizeT) : Version
   fun engine_cooldown = lsquic_engine_cooldown(x0 : EngineT)
-  fun hsk_getssl = lsquic_hsk_getssl(conn : ConnT) : SslSt*
-  alias SslSt = Void
   fun conn_get_ctx = lsquic_conn_get_ctx(x0 : ConnT) : Void*
   fun conn_set_ctx = lsquic_conn_set_ctx(x0 : ConnT, x1 : Void*)
-  fun conn_get_peer_ctx = lsquic_conn_get_peer_ctx(x0 : ConnT, local_sa : LibC::Sockaddr*) : Void*
+  fun conn_get_peer_ctx = lsquic_conn_get_peer_ctx(x0 : ConnT, local_sa : Sockaddr*) : Void*
   fun conn_abort = lsquic_conn_abort(x0 : ConnT)
   fun get_alt_svc_versions = lsquic_get_alt_svc_versions(versions : LibC::UInt) : LibC::Char*
   fun get_h3_alpns = lsquic_get_h3_alpns(versions : LibC::UInt) : LibC::Char**
@@ -354,6 +360,7 @@ lib LibLsquic
   fun engine_earliest_adv_tick = lsquic_engine_earliest_adv_tick(engine : EngineT, diff : LibC::Int*) : LibC::Int
   fun engine_count_attq = lsquic_engine_count_attq(engine : EngineT, from_now : LibC::Int) : LibC::UInt
   fun conn_status = lsquic_conn_status(x0 : ConnT, errbuf : LibC::Char*, bufsz : LibC::SizeT) : ConnStatus
+
   enum ConnStatus
     LsconnStHskInProgress = 0
     LsconnStConnected     = 1
@@ -366,5 +373,6 @@ lib LibLsquic
     LsconnStClosed        = 8
     LsconnStPeerGoingAway = 9
   end
+
   $ver2str : LibC::Char*[6]
 end
