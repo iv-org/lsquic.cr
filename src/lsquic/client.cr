@@ -154,7 +154,7 @@ module QUIC
 
     def run_engine
       LibLsquic.engine_init_settings(out engine_settings, ENGINE_FLAGS)
-      engine_settings.es_ua = "Chrome/78.0.3904.97 Linux x86_64"
+      engine_settings.es_ua = "Chrome/83.0.4103.61 Linux x86_64"
       engine_settings.es_ecn = 0
 
       err_buf = Bytes.new(0x100)
