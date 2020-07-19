@@ -2,9 +2,11 @@
 
 Crystal bindings to the excellent [LSQUIC](https://github.com/litespeedtech/lsquic) library.
 
-`libssl.a`, `libcrypto.a` are both licensed under `LICENSE.boringssl`.
+Releases track lsquic's versioning starting with `v2.18.1`.
 
 `liblsquic.a` is licensed under `LICENSE.lsquic` and `LICENSE.chrome`.
+
+Lsquic uses [boringssl](https://github.com/google/boringssl), which is licensed under `LICENSE.boringssl`.
 
 This library is available under the MIT license.
 
