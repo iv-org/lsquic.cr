@@ -1,66 +1,58 @@
 @[Link(ldflags: "#{__DIR__}/ext/liblsquic.a")]
 lib LibLsquic
-  MAX_CID_LEN                                = 20
-  QQUIC_CID_LEN                              =  8
-  LSENG_SERVER                               =  1
-  LSENG_HTTP                                 =  2
+  LSENG_SERVER                               = 1
+  LSENG_HTTP                                 = 2
   LSENG_HTTP_SERVER                          = LSENG_SERVER | LSENG_HTTP
-  GLOBAL_CLIENT                              = 1
-  GLOBAL_SERVER                              = 2
-  MAJOR_VERSION                              = 2
-  MINOR_VERSION                              = 6
-  PATCH_VERSION                              = 1
-  EXPERIMENTAL_Q098                          = 0
-  DEPRECATED_VERSIONS                        = 0
-  MIN_CFW                                    = 16 * 1024
-  DF_CFCW_SERVER                             = 3 * 1024 * 1024 / 2
-  DF_CFCW_CLIENT                             = 15 * 1024 * 1024
-  DF_SFCW_SERVER                             = 1 * 1024 * 1024
-  DF_SFCW_CLIENT                             = 6 * 1024 * 1024
+  GLOBAL_CLIENT                              =   1
+  GLOBAL_SERVER                              =   2
+  MAJOR_VERSION                              =   2
+  MINOR_VERSION                              =  18
+  PATCH_VERSION                              =   1
+  EXPERIMENTAL_Q098                          =   0
+  DEPRECATED_VERSIONS                        =   0
   DF_MAX_STREAMS_IN                          = 100
   DF_INIT_MAX_STREAM_DATA_BIDI_LOCAL_SERVER  =   0
   DF_INIT_MAX_STREAM_DATA_BIDI_REMOTE_CLIENT =   0
   DF_INIT_MAX_STREAMS_UNI_CLIENT             = 100
   DF_INIT_MAX_STREAMS_UNI_SERVER             =   3
-  DF_INIT_MAX_STREAM_DATA_UNI_CLIENT         = 32 * 1024
-  DF_INIT_MAX_STREAM_DATA_UNI_SERVER         = 12 * 1024
-  DF_IDLE_TIMEOUT                            = 30
-  DF_PING_PERIOD                             = 15
-  DF_HANDSHAKE_TO                            = 10 * 1000 * 1000
-  DF_IDLE_CONN_TO                            = DF_IDLE_TIMEOUT * 1000 * 1000
-  DF_SILENT_CLOSE                            = 1
-  DF_MAX_HEADER_LIST_SIZE                    = 0
+  DF_IDLE_TIMEOUT                            =  30
+  DF_PING_PERIOD                             =  15
+  DF_SILENT_CLOSE                            =   1
+  DF_MAX_HEADER_LIST_SIZE                    =   0
   DF_UA                                      = "LSQUIC"
   DF_STTL                                    = 86400
-  DF_MAX_INCHOATE                            = 1 * 1000 * 1000
-  DF_SUPPORT_SREJ_SERVER                     =    1
-  DF_SUPPORT_SREJ_CLIENT                     =    0
-  DF_SUPPORT_NSTP                            =    0
-  DF_SUPPORT_PUSH                            =    1
-  DF_SUPPORT_TCID0                           =    1
-  DF_HONOR_PRST                              =    0
-  DF_SEND_PRST                               =    0
-  DF_PROGRESS_CHECK                          = 1000
-  DF_RW_ONCE                                 =    0
-  DF_PROC_TIME_THRESH                        =    0
-  DF_PACE_PACKETS                            =    1
-  DF_CLOCK_GRANULARITY                       = 1000
-  DF_SCID_LEN                                =    8
-  DF_SCID_ISS_RATE                           =   60
-  DF_QPACK_DEC_MAX_BLOCKED                   =  100
-  DF_QPACK_DEC_MAX_SIZE                      = 4096
-  DF_QPACK_ENC_MAX_BLOCKED                   =  100
-  DF_QPACK_ENC_MAX_SIZE                      = 4096
-  DF_ECN                                     =    0
-  DF_ALLOW_MIGRATION                         =    1
-  DF_CC_ALGO                                 =    2
+  DF_SUPPORT_NSTP                            =     0
+  DF_SUPPORT_PUSH                            =     1
+  DF_SUPPORT_TCID0                           =     1
+  DF_HONOR_PRST                              =     0
+  DF_SEND_PRST                               =     0
+  DF_PROGRESS_CHECK                          =  1000
+  DF_RW_ONCE                                 =     0
+  DF_PROC_TIME_THRESH                        =     0
+  DF_PACE_PACKETS                            =     1
+  DF_CLOCK_GRANULARITY                       =  1000
+  DF_SCID_LEN                                =     8
+  DF_SCID_ISS_RATE                           =    60
+  DF_QPACK_DEC_MAX_BLOCKED                   =   100
+  DF_QPACK_DEC_MAX_SIZE                      =  4096
+  DF_QPACK_ENC_MAX_BLOCKED                   =   100
+  DF_QPACK_ENC_MAX_SIZE                      =  4096
+  DF_ECN                                     =     0
+  DF_ALLOW_MIGRATION                         =     1
+  DF_QL_BITS                                 =     2
+  DF_SPIN                                    =     1
+  DF_DELAYED_ACKS                            =     0
+  DF_TIMESTAMPS                              =     1
+  DF_CC_ALGO                                 =     1
+  DF_MAX_UDP_PAYLOAD_SIZE_RX                 =     0
+  DF_GREASE_QUIC_BIT                         =     1
+  DF_NOPROGRESS_TIMEOUT_SERVER               =    60
+  DF_NOPROGRESS_TIMEOUT_CLIENT               =     0
 
   struct Cid
-    len : UintFast8T
+    len : UInt8
     u_cid : CidUCid
   end
-
-  alias UintFast8T = UInt8
 
   union CidUCid
     buf : LibC::UInt8T[20]
@@ -80,7 +72,6 @@ lib LibLsquic
 
   struct LsxpackHeader
     buf : LibC::Char*
-    name_ptr : LibC::Char*
     name_hash : LibC::UInt32T
     nameval_hash : LibC::UInt32T
     name_offset : LibC::UInt16T
@@ -261,10 +252,11 @@ lib LibLsquic
     Lsqver043    = 0
     Lsqver046    = 1
     Lsqver050    = 2
-    LsqverId25   = 3
-    LsqverId27   = 4
-    LsqverVerneg = 5
-    NLsqver      = 6
+    LsqverId27   = 3
+    LsqverId28   = 4
+    LsqverId29   = 5
+    LsqverVerneg = 6
+    NLsqver      = 7
   end
 
   fun engine_packet_in = lsquic_engine_packet_in(x0 : EngineT, packet_in_data : UInt8*, packet_in_size : LibC::SizeT, sa_local : Sockaddr*, sa_peer : Sockaddr*, peer_ctx : Void*, ecn : LibC::Int) : LibC::Int
@@ -374,5 +366,5 @@ lib LibLsquic
     LsconnStPeerGoingAway = 9
   end
 
-  $ver2str : LibC::Char*[6]
+  $lsquic_ver2str : LibC::Char*[7]
 end

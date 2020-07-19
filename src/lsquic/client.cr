@@ -45,13 +45,25 @@ module QUIC
       headers = [] of LibLsquic::LsxpackHeader
       REQUIRED_HEADERS.each do |name|
         value = stream_ctx.request.headers[name]
-        headers << LibLsquic::LsxpackHeader.new(name_ptr: name, name_len: name.bytesize, buf: value, val_len: value.bytesize)
+        headers << LibLsquic::LsxpackHeader.new(
+          buf: "#{name}#{value}",
+          name_len: name.bytesize,
+          name_offset: 0,
+          val_len: value.bytesize,
+          val_offset: name.bytesize
+        )
       end
 
       request_headers.each do |name, values|
         name = name.downcase
         next if REQUIRED_HEADERS.includes? name
-        headers << LibLsquic::LsxpackHeader.new(name_ptr: name, name_len: name.bytesize, buf: values[0], val_len: values[0].bytesize)
+        headers << LibLsquic::LsxpackHeader.new(
+          buf: "#{name}#{values[0]}",
+          name_len: name.bytesize,
+          name_offset: 0,
+          val_len: values[0].bytesize,
+          val_offset: name.bytesize
+        )
       end
 
       http_headers = LibLsquic::HttpHeaders.new(count: headers.size, headers: headers.to_unsafe)

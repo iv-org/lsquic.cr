@@ -46,7 +46,3 @@ client.get("/", headers: HTTP::Headers{
 ## Contributors
 
 - [Omar Roth](https://github.com/omarroth) - creator and maintainer
-
-```
-
-```
