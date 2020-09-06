@@ -213,17 +213,24 @@ module QUIC
         end
         @engine_open = false
         LibLsquic.engine_destroy(engine)
+        @socket.try &.close
+        @socket = nil
       end
 
-      buffer = Bytes.new(0x600)
-      loop do
-        bytes_read = socket.read buffer
-        break if !@engine_open
-        LibLsquic.engine_packet_in(engine, buffer[0, bytes_read], bytes_read, socket.local_address, socket.remote_address, Box.box(socket), 0) if bytes_read != 0
-        LibLsquic.engine_process_conns(engine)
+      begin
+        buffer = Bytes.new(0x600)
+        loop do
+          bytes_read = socket.read buffer
+          break if !@engine_open
+          LibLsquic.engine_packet_in(engine, buffer[0, bytes_read], bytes_read, socket.local_address, socket.remote_address, Box.box(socket), 0) if bytes_read != 0
+          LibLsquic.engine_process_conns(engine)
+        end
+      rescue IO::Error
+        # may have already been closed
+      ensure
+        @socket.try &.close
+        @socket = nil
       end
-      @socket.try &.close
-      @socket = nil
     end
 
     def socket : UDPSocket
