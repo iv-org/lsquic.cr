@@ -17,7 +17,7 @@ This library is available under the MIT license.
    ```yaml
    dependencies:
      lsquic:
-       github: omarroth/lsquic.cr
+       github: iv-org/lsquic.cr
    ```
 
 2. Run `shards install`
@@ -39,7 +39,7 @@ client.get("/", headers: HTTP::Headers{
 
 ## Contributing
 
-1. Fork it (<https://github.com/omarroth/lsquic.cr/fork>)
+1. Fork it (<https://github.com/iv-org/lsquic.cr/fork>)
 2. Create your feature branch (`git checkout -b my-new-feature`)
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
