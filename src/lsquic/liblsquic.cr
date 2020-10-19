@@ -6,7 +6,7 @@ lib LibLsquic
   GLOBAL_CLIENT                              =   1
   GLOBAL_SERVER                              =   2
   MAJOR_VERSION                              =   2
-  MINOR_VERSION                              =  18
+  MINOR_VERSION                              =  23
   PATCH_VERSION                              =   1
   EXPERIMENTAL_Q098                          =   0
   DEPRECATED_VERSIONS                        =   0
@@ -43,7 +43,11 @@ lib LibLsquic
   DF_SPIN                                    =     1
   DF_DELAYED_ACKS                            =     0
   DF_TIMESTAMPS                              =     1
-  DF_CC_ALGO                                 =     1
+  DF_CC_ALGO                                 =     3
+  LSQUIC_DF_CC_RTT_THRESH                    =  1500
+  LSQUIC_DF_DATAGRAMS                        =     0
+  LSQUIC_DF_OPTIMISTIC_NAT                   =     1
+  LSQUIC_DF_EXT_HTTP_PRIO                    =     1
   DF_MAX_UDP_PAYLOAD_SIZE_RX                 =     0
   DF_GREASE_QUIC_BIT                         =     1
   DF_NOPROGRESS_TIMEOUT_SERVER               =    60
@@ -100,6 +104,8 @@ lib LibLsquic
     on_read : (StreamT, Void* -> Void*)
     on_write : (StreamT, Void* -> Void*)
     on_close : (StreamT, Void* -> Void*)
+    on_dg_write : (ConnT, Void*, LibC::SizeT -> LibC::SizeT)
+    on_datagram : (ConnT, Void*, LibC::SizeT -> Void*)
     on_hsk_done : (ConnT, HskStatus -> Void*)
     on_new_token : (ConnT, UInt8*, LibC::SizeT -> Void*)
     on_zero_rtt_info : (ConnT, UInt8*, LibC::SizeT -> Void*)
@@ -141,6 +147,9 @@ lib LibLsquic
     es_proc_time_thresh : LibC::UInt
     es_pace_packets : LibC::Int
     es_clock_granularity : LibC::UInt
+    es_cc_algo : LibC::UInt
+    es_cc_rtt_thresh : LibC::UInt
+    es_noprogress_timeout : LibC::UInt
     es_init_max_data : LibC::UInt
     es_init_max_stream_data_bidi_remote : LibC::UInt
     es_init_max_stream_data_bidi_local : LibC::UInt
@@ -157,12 +166,19 @@ lib LibLsquic
     es_qpack_enc_max_blocked : LibC::UInt
     es_ecn : LibC::Int
     es_allow_migration : LibC::Int
-    es_cc_algo : LibC::UInt
     es_ql_bits : LibC::Int
     es_spin : LibC::Int
     es_delayed_acks : LibC::Int
     es_timestamps : LibC::Int
     es_max_packet_size_rx : LibC::UInt16T
+    es_grease_quic_bit : LibC::Int
+    es_dplpmtud : LibC::Int
+    es_base_plpmtu : LibC::UInt16T
+    es_max_plpmtu : LibC::UInt16T
+    es_mtu_probe_timer : LibC::UInt
+    es_datagrams : LibC::Int
+    es_optimistic_nat : LibC::Int
+    es_ext_http_prio : LibC::Int
   end
 
   fun engine_init_settings = lsquic_engine_init_settings(x0 : EngineSettings*, engine_flags : LibC::UInt)
@@ -174,6 +190,7 @@ lib LibLsquic
     local_sa : LibC::Sockaddr*
     dest_sa : LibC::Sockaddr*
     peer_ctx : Void*
+    conn_ctx : ConnCtx*
     ecn : LibC::Int
   end
 
@@ -186,7 +203,7 @@ lib LibLsquic
   alias TimeT = LibC::Long
 
   struct PackoutMemIf
-    pmi_allocate : (Void*, Void*, LibC::UShort, LibC::Char -> Void*)
+    pmi_allocate : (Void*, Void*, ConnCtx*, LibC::UShort, LibC::Char -> Void*)
     pmi_release : (Void*, Void*, Void*, LibC::Char -> Void)
     pmi_return : (Void*, Void*, Void*, LibC::Char -> Void)
   end
@@ -235,6 +252,7 @@ lib LibLsquic
     ea_keylog_if : KeylogIf*
     ea_keylog_ctx : Void*
     ea_alpn : LibC::Char*
+    ea_generate_scid : (ConnT*, CidT*, LibC::UInt -> Void*)
   end
 
   alias PacketsOutF = (Void*, OutSpec*, LibC::UInt -> LibC::Int)
@@ -246,7 +264,7 @@ lib LibLsquic
   alias StackStX509 = Void
   fun engine_new = lsquic_engine_new(engine_flags : LibC::UInt, api : EngineApi*) : EngineT
   type EngineT = Void*
-  fun engine_connect = lsquic_engine_connect(x0 : EngineT, x1 : Version, local_sa : Sockaddr*, peer_sa : Sockaddr*, peer_ctx : Void*, conn_ctx : Void*, hostname : LibC::Char*, max_packet_size : LibC::UShort, zero_rtt : UInt8*, zero_rtt_len : LibC::SizeT, token : UInt8*, token_sz : LibC::SizeT) : ConnT
+  fun engine_connect = lsquic_engine_connect(x0 : EngineT, x1 : Version, local_sa : Sockaddr*, peer_sa : Sockaddr*, peer_ctx : Void*, conn_ctx : Void*, hostname : LibC::Char*, base_plpmtu : LibC::UShort, sess_resume : UInt8*, sess_resume_len : LibC::SizeT, token : UInt8*, token_sz : LibC::SizeT) : ConnT
 
   enum Version
     Lsqver043    = 0
@@ -255,8 +273,10 @@ lib LibLsquic
     LsqverId27   = 3
     LsqverId28   = 4
     LsqverId29   = 5
-    LsqverVerneg = 6
-    NLsqver      = 7
+    LsqverId30   = 6
+    LsqverId31   = 7
+    LsqverVerneg = 8
+    NLsqver      = 9
   end
 
   fun engine_packet_in = lsquic_engine_packet_in(x0 : EngineT, packet_in_data : UInt8*, packet_in_size : LibC::SizeT, sa_local : Sockaddr*, sa_peer : Sockaddr*, peer_ctx : Void*, ecn : LibC::Int) : LibC::Int
@@ -277,6 +297,7 @@ lib LibLsquic
   fun stream_wantwrite = lsquic_stream_wantwrite(s : StreamT, is_want : LibC::Int) : LibC::Int
   fun stream_write = lsquic_stream_write(s : StreamT, buf : Void*, len : LibC::SizeT) : LibC::SizeT
   fun stream_writev = lsquic_stream_writev(s : StreamT, vec : Iovec*, count : LibC::Int) : LibC::SizeT
+  fun stream_pwritev = lsquic_stream_pwritev(s : StreamT, preadv : (Void*, Iovec, LibC::Int -> LibC::SizeT), user_data : Void*, n_to_write : LibC::SizeT) : LibC::SizeT
 
   struct Reader
     lsqr_read : (Void*, Void*, LibC::SizeT -> LibC::SizeT)
@@ -302,10 +323,21 @@ lib LibLsquic
   fun stream_push_info = lsquic_stream_push_info(x0 : StreamT, ref_stream_id : StreamIdT*, hdr_set : Void**) : LibC::Int
   fun stream_priority = lsquic_stream_priority(s : StreamT) : LibC::UInt
   fun stream_set_priority = lsquic_stream_set_priority(s : StreamT, priority : LibC::UInt) : LibC::Int
+  
+  struct ExtHttpPrio
+    urgency : UInt8
+    incremental : LibC::Char
+  end
+
+  fun stream_get_http_prio = lsquic_stream_get_http_prio(s : StreamT, ext_http_prio : ExtHttpPrio* ) : LibC::Int
+  fun stream_set_http_prio = lsquic_stream_set_http_prio(s : StreamT, ext_http_prio : ExtHttpPrio* ) : LibC::Int
   fun stream_conn = lsquic_stream_conn(s : StreamT) : ConnT
   fun conn_id = lsquic_conn_id(c : ConnT) : CidT*
   fun conn_get_engine = lsquic_conn_get_engine(c : ConnT) : EngineT
   fun conn_get_sockaddr = lsquic_conn_get_sockaddr(c : ConnT, local : Sockaddr**, peer : Sockaddr**) : LibC::Int
+  fun conn_want_datagram_write = lsquic_conn_want_datagram_write(c : ConnT, is_want : LibC::Int) : LibC::Int
+  fun conn_get_min_datagram_size = lsquic_conn_get_min_datagram_size(c : ConnT) : LibC::SizeT
+  fun conn_set_min_datagram_size = lsquic_conn_set_min_datagram_size(c : ConnT, sz : LibC::SizeT) : LibC::Int
 
   struct LoggerIf
     log_buf : (Void*, LibC::Char*, LibC::SizeT -> LibC::Int)
