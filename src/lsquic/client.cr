@@ -226,17 +226,39 @@ module QUIC
           diff = 0
           # check advisory time
           if LibLsquic.engine_earliest_adv_tick(engine, pointerof(diff)) != 0
-            Thread.current.scheduler.@current.resume_event.add(diff.microseconds)
+            Crystal::Scheduler.current_fiber.resume_event.add(diff.microseconds)
           end
         end
       end
 
       begin
-        buffer = Bytes.new(0x600)
+        buffers = [] of Bytes
+        bytes_read = [] of Int32
         loop do
-          bytes_read = socket.read buffer
+          # wait until the socket has something.
+          socket.wait_readable
+          # read available messages from the socket into the buffers.
+          buffers_read = 0
+          loop do
+            if (buffers_read >= buffers.size)
+              buffers.push(Bytes.new(0x600))
+              bytes_read.push(0)
+            end
+            bytes_read[buffers_read] = LibC.recv(socket.fd, buffers[buffers_read], buffers[buffers_read].size, 0).to_i32
+            if bytes_read[buffers_read] == -1
+              if Errno.value == Errno::EAGAIN || Errno.value == Errno::EWOULDBLOCK
+                # no more messages are currently available to read from the socket.
+                break
+              else
+                raise IO::Error.from_errno("failed to read from socket")
+              end
+            end
+            buffers_read += 1
+          end
           break if !@engine_open
-          LibLsquic.engine_packet_in(engine, buffer[0, bytes_read], bytes_read, socket.local_address, socket.remote_address, Box.box(socket), 0) if bytes_read != 0
+          buffers[0, buffers_read].zip(bytes_read) do |buffer, bytes|
+            LibLsquic.engine_packet_in(engine, buffer[0, bytes], bytes, socket.local_address, socket.remote_address, Box.box(socket), 0) if bytes != 0
+          end
           client_process_conns(engine)
         end
         @socket.try &.close
