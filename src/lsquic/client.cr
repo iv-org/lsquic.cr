@@ -225,11 +225,10 @@ module QUIC
           LibLsquic.engine_packet_in(engine, buffer[0, bytes_read], bytes_read, socket.local_address, socket.remote_address, Box.box(socket), 0) if bytes_read != 0
           LibLsquic.engine_process_conns(engine)
         end
-      rescue IO::Error
-        # may have already been closed
-      ensure
         @socket.try &.close
         @socket = nil
+      rescue IO::Error
+        # may have already been closed
       end
     end
 
