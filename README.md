@@ -2,7 +2,7 @@
 
 Crystal bindings to the excellent [LSQUIC](https://github.com/litespeedtech/lsquic) library.
 
-Releases track lsquic's versioning starting with `v2.18.1`.
+Releases track lsquic's versioning starting with `v2.23.1`.
 
 `liblsquic.a` is licensed under `LICENSE.lsquic` and `LICENSE.chrome`.
 
