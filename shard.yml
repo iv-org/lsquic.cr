@@ -4,6 +4,6 @@ version: 2.18.1
 authors:
   - Omar Roth <omarroth@protonmail.com>
 
-crystal: 0.35.1
+crystal: ">= 0.35.0, < 2.0.0"
 
 license: MIT
