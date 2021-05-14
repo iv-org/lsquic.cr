@@ -214,7 +214,6 @@ module QUIC
           client_process_conns(engine)
         end
         @engine_open = false
-        LibLsquic.engine_destroy(engine)
         @socket.try &.close
         @socket = nil
       end

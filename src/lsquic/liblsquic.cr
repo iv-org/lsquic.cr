@@ -6,8 +6,8 @@ lib LibLsquic
   GLOBAL_CLIENT                              =   1
   GLOBAL_SERVER                              =   2
   MAJOR_VERSION                              =   2
-  MINOR_VERSION                              =  23
-  PATCH_VERSION                              =   1
+  MINOR_VERSION                              =  30
+  PATCH_VERSION                              =   2
   EXPERIMENTAL_Q098                          =   0
   DEPRECATED_VERSIONS                        =   0
   DF_MAX_STREAMS_IN                          = 100
@@ -179,6 +179,20 @@ lib LibLsquic
     es_datagrams : LibC::Int
     es_optimistic_nat : LibC::Int
     es_ext_http_prio : LibC::Int
+    es_qpack_experiment : LibC::Int
+
+    es_ptpc_periodicity : LibC::UInt
+    es_ptpc_max_packtol : LibC::UInt
+    es_ptpc_dyn_target : LibC::Int
+    es_ptpc_target : LibC::Float
+    es_ptpc_prop_gain : LibC::Float
+    es_ptpc_int_gain : LibC::Float
+    es_ptpc_err_thresh : LibC::Float
+    es_ptpc_err_divisor : LibC::Float
+
+    es_delay_onclose : LibC::Int
+    es_max_batch_size : LibC::UInt
+    es_check_tp_sanity : LibC::Int
   end
 
   fun engine_init_settings = lsquic_engine_init_settings(x0 : EngineSettings*, engine_flags : LibC::UInt)
@@ -252,7 +266,8 @@ lib LibLsquic
     ea_keylog_if : KeylogIf*
     ea_keylog_ctx : Void*
     ea_alpn : LibC::Char*
-    ea_generate_scid : (ConnT*, CidT*, LibC::UInt -> Void*)
+    ea_generate_scid : (Void*, ConnT*, CidT*, LibC::UInt -> Void*)
+    ea_gen_scid_ctx : Void*
   end
 
   alias PacketsOutF = (Void*, OutSpec*, LibC::UInt -> LibC::Int)
@@ -262,6 +277,7 @@ lib LibLsquic
   type CidT = Cid
   alias CidsUpdateF = (Void*, Void**, CidT*, LibC::UInt -> Void)
   alias StackStX509 = Void
+  
   fun engine_new = lsquic_engine_new(engine_flags : LibC::UInt, api : EngineApi*) : EngineT
   type EngineT = Void*
   fun engine_connect = lsquic_engine_connect(x0 : EngineT, x1 : Version, local_sa : Sockaddr*, peer_sa : Sockaddr*, peer_ctx : Void*, conn_ctx : Void*, hostname : LibC::Char*, base_plpmtu : LibC::UShort, sess_resume : UInt8*, sess_resume_len : LibC::SizeT, token : UInt8*, token_sz : LibC::SizeT) : ConnT
@@ -313,6 +329,7 @@ lib LibLsquic
   fun conn_is_push_enabled = lsquic_conn_is_push_enabled(x0 : ConnT) : LibC::Int
   fun stream_shutdown = lsquic_stream_shutdown(s : StreamT, how : LibC::Int) : LibC::Int
   fun stream_close = lsquic_stream_close(s : StreamT) : LibC::Int
+  fun stream_has_unacked_data = lsquic_stream_has_unacked_data(s : StreamT) : LibC::Int
   fun conn_get_server_cert_chain = lsquic_conn_get_server_cert_chain(x0 : ConnT) : StackStX509*
   fun stream_id = lsquic_stream_id(s : StreamT) : StreamIdT
   alias StreamIdT = LibC::UInt64T
@@ -376,11 +393,13 @@ lib LibLsquic
   fun conn_get_ctx = lsquic_conn_get_ctx(x0 : ConnT) : Void*
   fun conn_set_ctx = lsquic_conn_set_ctx(x0 : ConnT, x1 : Void*)
   fun conn_get_peer_ctx = lsquic_conn_get_peer_ctx(x0 : ConnT, local_sa : Sockaddr*) : Void*
+  fun conn_get_sni = lsquic_conn_get_sni(x0 : ConnT) : LibC::Char*
   fun conn_abort = lsquic_conn_abort(x0 : ConnT)
   fun get_alt_svc_versions = lsquic_get_alt_svc_versions(versions : LibC::UInt) : LibC::Char*
   fun get_h3_alpns = lsquic_get_h3_alpns(versions : LibC::UInt) : LibC::Char**
   fun is_valid_hs_packet = lsquic_is_valid_hs_packet(x0 : EngineT, x1 : UInt8*, x2 : LibC::SizeT) : LibC::Int
   fun cid_from_packet = lsquic_cid_from_packet(x0 : UInt8*, bufsz : LibC::SizeT, cid : CidT*) : LibC::Int
+  fun dcid_from_packet = lsquic_dcid_from_packet(x0 : UInt8*, bufsz : LibC::SizeT, server_cid_len : LibC::UInt, cid_len : LibC::UInt*) 
   fun engine_earliest_adv_tick = lsquic_engine_earliest_adv_tick(engine : EngineT, diff : LibC::Int*) : LibC::Int
   fun engine_count_attq = lsquic_engine_count_attq(engine : EngineT, from_now : LibC::Int) : LibC::UInt
   fun conn_status = lsquic_conn_status(x0 : ConnT, errbuf : LibC::Char*, bufsz : LibC::SizeT) : ConnStatus
@@ -396,6 +415,7 @@ lib LibLsquic
     LsconnStError         = 7
     LsconnStClosed        = 8
     LsconnStPeerGoingAway = 9
+    LSCONN_ST_VERNEG_FAILURE = 10
   end
 
   $lsquic_ver2str : LibC::Char*[7]
