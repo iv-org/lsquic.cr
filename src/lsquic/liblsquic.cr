@@ -42,6 +42,14 @@ lib LibLsquic
   DF_QL_BITS                                 =     2
   DF_SPIN                                    =     1
   DF_DELAYED_ACKS                            =     0
+  LSQUIC_DF_PTPC_PERIODICITY                 =     3
+  LSQUIC_DF_PTPC_MAX_PACKTOL                 =   150
+  LSQUIC_DF_PTPC_DYN_TARGET                  =     1
+  LSQUIC_DF_PTPC_TARGET                      =   1.0
+  LSQUIC_DF_PTPC_PROP_GAIN                   =   0.8
+  LSQUIC_DF_PTPC_INT_GAIN                    =  0.35
+  LSQUIC_DF_PTPC_ERR_THRESH                  =  0.05
+  LSQUIC_DF_PTPC_ERR_DIVISOR                 =  0.05
   DF_TIMESTAMPS                              =     1
   DF_CC_ALGO                                 =     3
   LSQUIC_DF_CC_RTT_THRESH                    =  1500
@@ -52,6 +60,10 @@ lib LibLsquic
   DF_GREASE_QUIC_BIT                         =     1
   DF_NOPROGRESS_TIMEOUT_SERVER               =    60
   DF_NOPROGRESS_TIMEOUT_CLIENT               =     0
+  LSQUIC_DF_MTU_PROBE_TIMER                  =  1000
+  LSQUIC_DF_DELAY_ONCLOSE                    =     0
+  LSQUIC_DF_MAX_BATCH_SIZE                   =     0
+  LSQUIC_DF_CHECK_TP_SANITY                  =     1
 
   struct Cid
     len : UInt8
@@ -108,7 +120,8 @@ lib LibLsquic
     on_datagram : (ConnT, Void*, LibC::SizeT -> Void*)
     on_hsk_done : (ConnT, HskStatus -> Void*)
     on_new_token : (ConnT, UInt8*, LibC::SizeT -> Void*)
-    on_zero_rtt_info : (ConnT, UInt8*, LibC::SizeT -> Void*)
+
+    on_sess_resume_info : (ConnT, UInt8*, LibC::SizeT -> Void*)
   end
 
   type ConnT = Void*
@@ -236,12 +249,6 @@ lib LibLsquic
     HsiHashNameval = 8
   end
 
-  struct KeylogIf
-    kli_open : (Void*, ConnT -> Void*)
-    kli_log_line : (Void*, LibC::Char* -> Void)
-    kli_close : (Void* -> Void)
-  end
-
   struct EngineApi
     ea_settings : EngineSettings*
     ea_stream_if : StreamIf*
@@ -263,8 +270,6 @@ lib LibLsquic
     ea_verify_ctx : Void*
     ea_hsi_if : HsetIf*
     ea_hsi_ctx : Void*
-    ea_keylog_if : KeylogIf*
-    ea_keylog_ctx : Void*
     ea_alpn : LibC::Char*
     ea_generate_scid : (Void*, ConnT*, CidT*, LibC::UInt -> Void*)
     ea_gen_scid_ctx : Void*
@@ -272,12 +277,13 @@ lib LibLsquic
 
   alias PacketsOutF = (Void*, OutSpec*, LibC::UInt -> LibC::Int)
   alias SslCtxSt = Void
+  alias SslSt = Void
   alias Sockaddr = LibC::Sockaddr
   alias LookupCertF = (Void*, Sockaddr*, LibC::Char* -> SslCtxSt*)
   type CidT = Cid
   alias CidsUpdateF = (Void*, Void**, CidT*, LibC::UInt -> Void)
   alias StackStX509 = Void
-  
+
   fun engine_new = lsquic_engine_new(engine_flags : LibC::UInt, api : EngineApi*) : EngineT
   type EngineT = Void*
   fun engine_connect = lsquic_engine_connect(x0 : EngineT, x1 : Version, local_sa : Sockaddr*, peer_sa : Sockaddr*, peer_ctx : Void*, conn_ctx : Void*, hostname : LibC::Char*, base_plpmtu : LibC::UShort, sess_resume : UInt8*, sess_resume_len : LibC::SizeT, token : UInt8*, token_sz : LibC::SizeT) : ConnT
@@ -295,7 +301,7 @@ lib LibLsquic
     NLsqver      = 9
   end
 
-  fun engine_packet_in = lsquic_engine_packet_in(x0 : EngineT, packet_in_data : UInt8*, packet_in_size : LibC::SizeT, sa_local : Sockaddr*, sa_peer : Sockaddr*, peer_ctx : Void*, ecn : LibC::Int) : LibC::Int
+  fun engine_packet_in = lsquic_engine_packet_in(x0 : EngineT, packet_in_data : Void*, packet_in_size : LibC::SizeT, sa_local : Sockaddr*, sa_peer : Sockaddr*, peer_ctx : Void*, ecn : LibC::Int) : LibC::Int
   fun engine_process_conns = lsquic_engine_process_conns(engine : EngineT)
   fun engine_has_unsent_packets = lsquic_engine_has_unsent_packets(engine : EngineT) : LibC::Int
   fun engine_send_unsent_packets = lsquic_engine_send_unsent_packets(engine : EngineT)
@@ -340,14 +346,14 @@ lib LibLsquic
   fun stream_push_info = lsquic_stream_push_info(x0 : StreamT, ref_stream_id : StreamIdT*, hdr_set : Void**) : LibC::Int
   fun stream_priority = lsquic_stream_priority(s : StreamT) : LibC::UInt
   fun stream_set_priority = lsquic_stream_set_priority(s : StreamT, priority : LibC::UInt) : LibC::Int
-  
+
   struct ExtHttpPrio
     urgency : UInt8
     incremental : LibC::Char
   end
 
-  fun stream_get_http_prio = lsquic_stream_get_http_prio(s : StreamT, ext_http_prio : ExtHttpPrio* ) : LibC::Int
-  fun stream_set_http_prio = lsquic_stream_set_http_prio(s : StreamT, ext_http_prio : ExtHttpPrio* ) : LibC::Int
+  fun stream_get_http_prio = lsquic_stream_get_http_prio(s : StreamT, ext_http_prio : ExtHttpPrio*) : LibC::Int
+  fun stream_set_http_prio = lsquic_stream_set_http_prio(s : StreamT, ext_http_prio : ExtHttpPrio*) : LibC::Int
   fun stream_conn = lsquic_stream_conn(s : StreamT) : ConnT
   fun conn_id = lsquic_conn_id(c : ConnT) : CidT*
   fun conn_get_engine = lsquic_conn_get_engine(c : ConnT) : EngineT
@@ -399,22 +405,22 @@ lib LibLsquic
   fun get_h3_alpns = lsquic_get_h3_alpns(versions : LibC::UInt) : LibC::Char**
   fun is_valid_hs_packet = lsquic_is_valid_hs_packet(x0 : EngineT, x1 : UInt8*, x2 : LibC::SizeT) : LibC::Int
   fun cid_from_packet = lsquic_cid_from_packet(x0 : UInt8*, bufsz : LibC::SizeT, cid : CidT*) : LibC::Int
-  fun dcid_from_packet = lsquic_dcid_from_packet(x0 : UInt8*, bufsz : LibC::SizeT, server_cid_len : LibC::UInt, cid_len : LibC::UInt*) 
+  fun dcid_from_packet = lsquic_dcid_from_packet(x0 : UInt8*, bufsz : LibC::SizeT, server_cid_len : LibC::UInt, cid_len : LibC::UInt*)
   fun engine_earliest_adv_tick = lsquic_engine_earliest_adv_tick(engine : EngineT, diff : LibC::Int*) : LibC::Int
   fun engine_count_attq = lsquic_engine_count_attq(engine : EngineT, from_now : LibC::Int) : LibC::UInt
   fun conn_status = lsquic_conn_status(x0 : ConnT, errbuf : LibC::Char*, bufsz : LibC::SizeT) : ConnStatus
 
   enum ConnStatus
-    LsconnStHskInProgress = 0
-    LsconnStConnected     = 1
-    LsconnStHskFailure    = 2
-    LsconnStGoingAway     = 3
-    LsconnStTimedOut      = 4
-    LsconnStReset         = 5
-    LsconnStUserAborted   = 6
-    LsconnStError         = 7
-    LsconnStClosed        = 8
-    LsconnStPeerGoingAway = 9
+    LsconnStHskInProgress    =  0
+    LsconnStConnected        =  1
+    LsconnStHskFailure       =  2
+    LsconnStGoingAway        =  3
+    LsconnStTimedOut         =  4
+    LsconnStReset            =  5
+    LsconnStUserAborted      =  6
+    LsconnStError            =  7
+    LsconnStClosed           =  8
+    LsconnStPeerGoingAway    =  9
     LSCONN_ST_VERNEG_FAILURE = 10
   end
 

@@ -207,6 +207,7 @@ module QUIC
         nil, 0,
         nil, 0
       )
+
       spawn do
         while stream_ctx = @stream_channel.receive
           LibLsquic.conn_set_ctx(conn, Box.box(stream_ctx))
@@ -214,6 +215,7 @@ module QUIC
           client_process_conns(engine)
         end
         @engine_open = false
+        LibLsquic.engine_destroy(engine)
         @socket.try &.close
         @socket = nil
       end
@@ -221,11 +223,13 @@ module QUIC
       @process_fiber = spawn do
         loop do
           sleep
-          LibLsquic.engine_process_conns(engine)
-          diff = 0
-          # check advisory time
-          if LibLsquic.engine_earliest_adv_tick(engine, pointerof(diff)) != 0
-            Crystal::Scheduler.current_fiber.resume_event.add(diff.microseconds)
+          if @engine_open
+            LibLsquic.engine_process_conns(engine)
+            diff = 0
+            # check advisory time
+            if LibLsquic.engine_earliest_adv_tick(engine, pointerof(diff)) != 0
+              Crystal::Scheduler.current_fiber.resume_event.add(diff.microseconds)
+            end
           end
         end
       end
@@ -311,12 +315,6 @@ module QUIC
 
     private def raise_invalid_host(string : String)
       raise ArgumentError.new("The string passed to create an HTTP::Client must be just a host, not #{string.inspect}")
-    end
-
-    def self.new(uri : URI, tls = nil)
-      tls = tls_flag(uri, tls)
-      host = validate_host(uri)
-      new(host, uri.port, tls)
     end
 
     def self.new(uri : URI, tls = nil)
