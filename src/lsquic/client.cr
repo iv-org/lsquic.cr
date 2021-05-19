@@ -320,6 +320,12 @@ module QUIC
     def self.new(uri : URI, tls = nil)
       tls = tls_flag(uri, tls)
       host = validate_host(uri)
+      new(host, uri.port, tls)
+    end
+
+    def self.new(uri : URI, tls = nil)
+      tls = tls_flag(uri, tls)
+      host = validate_host(uri)
       client = new(host, uri.port, tls)
       begin
         yield client
