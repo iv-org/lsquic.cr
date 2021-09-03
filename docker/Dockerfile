@@ -23,7 +23,6 @@ RUN mkdir tmp && cd tmp && \
     ar -x /usr/lib/libcrypto.a && \
     ar -x /usr/lib/liblsquic.a && \
     ar rc liblsquic.a *.o && \
-    strip --strip-unneeded liblsquic.a && \
     ranlib liblsquic.a && \
     cp liblsquic.a /root/liblsquic.a && \
     cd .. && rm -rf tmp

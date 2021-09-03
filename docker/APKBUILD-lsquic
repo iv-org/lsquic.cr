@@ -21,7 +21,7 @@ prepare() {
 
 build() {
 	cmake \
-		-DCMAKE_BUILD_TYPE=None \
+		-DCMAKE_BUILD_TYPE=RelWithDebInfo \
 		-DBORINGSSL_INCLUDE=/usr/include/openssl \
 		-DBORINGSSL_LIB_crypto=/usr/lib \
 		-DBORINGSSL_LIB_ssl=/usr/lib .
