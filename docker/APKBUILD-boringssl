@@ -12,8 +12,8 @@ depends="!openssl-libs-static"
 makedepends_host="linux-headers"
 makedepends="cmake git go perl"
 subpackages="$pkgname-static $pkgname-dev $pkgname-doc"
-source="251b516.tar.gz::https://github.com/google/boringssl/tarball/251b516"
-builddir="$srcdir/google-boringssl-251b516"
+source="c239ffd.tar.gz::https://github.com/google/boringssl/tarball/c239ffd"
+builddir="$srcdir/google-boringssl-c239ffd"
 
 prepare() {
 	:
@@ -41,6 +41,4 @@ package() {
 #	install -Dm755 decrepit/libdecrepit.a "$pkgdir/usr/lib/libdecrepit.a"
 #	install -Dm755 libboringssl_gtest.a "$pkgdir/usr/lib/libboringssl_gtest.a"
 }
-sha512sums="
-b1d42ed188cf0cce89d40061fa05de85b387ee4244f1236ea488a431536a2c6b657b4f03daed0ac9328c7f5c4c9330499283b8a67f1444dcf9ba5e97e1199c4e  251b516.tar.gz
-"
+sha512sums="fad2e914fdefeaa4ef0add297a214cbecac9f1290f8a3aa63df97890ab7d4cb569183a140b6d9216c719a857c163705df7f1721e956a9b0355117a5eef58d469  c239ffd.tar.gz"
